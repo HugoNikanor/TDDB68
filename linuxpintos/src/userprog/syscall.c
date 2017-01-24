@@ -3,6 +3,8 @@
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/init.h"
+#include "filesys/filesys.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -15,6 +17,35 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
+  void* sp = f->esp;
   printf ("system call!\n");
-  thread_exit ();
+  int id = *((int*)(sp));
+
+  sp += 4;
+
+  printf("ID: %i", id);
+
+  switch(id) {
+    case SYS_HALT:
+      halt(); 
+      break;
+    case SYS_CREATE: ; //Fulhax  
+      char *file_name = *((char**)(sp));
+      sp += 4;
+      unsigned size = *((unsigned*)(sp));
+      f->eax = create(file_name, size);
+      break;
+  }
+}
+
+static void
+halt (void) 
+{
+  power_off(); 
+}
+
+static bool
+create (const char *file, unsigned initial_size)
+{
+  return filesys_create(file, initial_size);
 }
