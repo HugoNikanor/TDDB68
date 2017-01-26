@@ -5,6 +5,11 @@
 #include <list.h>
 #include <stdint.h>
 
+#ifdef USERPROG
+#include "filesys/filesys.h"
+#endif
+
+
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -95,6 +100,7 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
+    struct file *file_list[128]; /* File descriptor is index+2 */
 #endif
 
     /* Owned by thread.c. */
