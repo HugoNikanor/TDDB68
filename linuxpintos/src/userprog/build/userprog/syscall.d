@@ -3,4 +3,4 @@ userprog/syscall.o: ../../userprog/syscall.c ../../userprog/syscall.h \
  ../../lib/stdarg.h ../../lib/stddef.h ../../lib/stdint.h \
  ../../lib/kernel/stdio.h ../../lib/syscall-nr.h \
  ../../threads/interrupt.h ../../threads/thread.h ../../lib/kernel/list.h \
- ../../threads/init.h ../../filesys/filesys.h ../../filesys/off_t.h
+ ../../filesys/filesys.h ../../filesys/off_t.h ../../threads/init.h
