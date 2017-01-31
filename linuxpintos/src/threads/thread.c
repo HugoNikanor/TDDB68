@@ -195,6 +195,13 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
+  #ifdef USERPROG
+  int i;
+  for(i = 0; i < 128; i++){
+    t->file_list[i] = NULL;
+  }
+  #endif
+
   return tid;
 }
 
@@ -277,6 +284,14 @@ thread_exit (void)
   ASSERT (!intr_context ());
 
 #ifdef USERPROG
+  //Free memory of file_list
+  struct thread *cur_thread = thread_current();
+  
+  int i;
+  for(i = 0; i < 128 && cur_thread->file_list[i] != NULL; i++){
+    free(cur_thread->file_list[i]);
+  }
+
   process_exit ();
 #endif
 
@@ -436,13 +451,6 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
-
-#ifdef USERPROG
-  int i;
-  for(i = 0; i < 128; i++){
-    t->file_list[i] = NULL;
-  }
-#endif
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
