@@ -289,7 +289,7 @@ thread_exit (void)
   
   int i;
   for(i = 0; i < 128 && cur_thread->file_list[i] != NULL; i++){
-    free(cur_thread->file_list[i]);
+    file_close(cur_thread->file_list[i]);
   }
 
   process_exit ();

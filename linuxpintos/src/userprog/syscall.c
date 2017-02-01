@@ -25,25 +25,29 @@ syscall_handler (struct intr_frame *f UNUSED)
   sp += 4;
 
   switch(id) {
-    case SYS_HALT:
+    case SYS_HALT: {
       halt(); 
       break;
-    case SYS_CREATE: ; //Fulhax  
+    }
+    case SYS_CREATE: {
       char *file_name = *((char**)(sp));
       sp += 4;
       unsigned new_size = *((unsigned*)(sp));
       f->eax = create(file_name, new_size);
       break;
-    case SYS_OPEN: ;
+    }
+    case SYS_OPEN: {
       char *f_name = *((char**)(sp));
       f->eax = open(f_name);
       break;
-    case SYS_CLOSE: ;
+    }
+    case SYS_CLOSE: {
       int fd_close = *((int*)(sp));
       close(fd_close);
       break;
-   case SYS_READ:
-   case SYS_WRITE: ;
+    }
+    case SYS_READ:
+    case SYS_WRITE: {
       int fd_rw = *((int*)(sp));
       sp += 4;
       void *buffer = *((void**)sp);
@@ -56,9 +60,11 @@ syscall_handler (struct intr_frame *f UNUSED)
 	f->eax = read(fd_rw, buffer, buffer_size);
       }
       break;
-   case SYS_EXIT: ;
+    }
+    case SYS_EXIT: {
       exit(0);
       break;
+    }
   }
 }
 
