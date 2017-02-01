@@ -1,5 +1,5 @@
 diff --git a/linuxpintos/src/threads/thread.c b/linuxpintos/src/threads/thread.c
-index 92d1aa8..e4e3ddb 100644
+index 92d1aa8..f63934d 100644
 --- a/linuxpintos/src/threads/thread.c
 +++ b/linuxpintos/src/threads/thread.c
 @@ -195,6 +195,13 @@ thread_create (const char *name, int priority,
@@ -25,7 +25,7 @@ index 92d1aa8..e4e3ddb 100644
 +  
 +  int i;
 +  for(i = 0; i < 128 && cur_thread->file_list[i] != NULL; i++){
-+    free(cur_thread->file_list[i]);
++    file_close(cur_thread->file_list[i]);
 +  }
 +
    process_exit ();
@@ -56,7 +56,7 @@ index 0039560..2415e8b 100644
  
      /* Owned by thread.c. */
 diff --git a/linuxpintos/src/userprog/syscall.c b/linuxpintos/src/userprog/syscall.c
-index 370c89b..a4321be 100644
+index 370c89b..34bab1b 100644
 --- a/linuxpintos/src/userprog/syscall.c
 +++ b/linuxpintos/src/userprog/syscall.c
 @@ -3,6 +3,10 @@
@@ -70,7 +70,7 @@ index 370c89b..a4321be 100644
  
  static void syscall_handler (struct intr_frame *);
  
-@@ -15,6 +19,170 @@ syscall_init (void)
+@@ -15,6 +19,176 @@ syscall_init (void)
  static void
  syscall_handler (struct intr_frame *f UNUSED) 
  {
@@ -82,25 +82,29 @@ index 370c89b..a4321be 100644
 +  sp += 4;
 +
 +  switch(id) {
-+    case SYS_HALT:
++    case SYS_HALT: {
 +      halt(); 
 +      break;
-+    case SYS_CREATE: ; //Fulhax  
++    }
++    case SYS_CREATE: {
 +      char *file_name = *((char**)(sp));
 +      sp += 4;
 +      unsigned new_size = *((unsigned*)(sp));
 +      f->eax = create(file_name, new_size);
 +      break;
-+    case SYS_OPEN: ;
++    }
++    case SYS_OPEN: {
 +      char *f_name = *((char**)(sp));
 +      f->eax = open(f_name);
 +      break;
-+    case SYS_CLOSE: ;
++    }
++    case SYS_CLOSE: {
 +      int fd_close = *((int*)(sp));
 +      close(fd_close);
 +      break;
-+   case SYS_READ:
-+   case SYS_WRITE: ;
++    }
++    case SYS_READ:
++    case SYS_WRITE: {
 +      int fd_rw = *((int*)(sp));
 +      sp += 4;
 +      void *buffer = *((void**)sp);
@@ -113,9 +117,11 @@ index 370c89b..a4321be 100644
 +	f->eax = read(fd_rw, buffer, buffer_size);
 +      }
 +      break;
-+   case SYS_EXIT: ;
++    }
++    case SYS_EXIT: {
 +      exit(0);
 +      break;
++    }
 +  }
 +}
 +
