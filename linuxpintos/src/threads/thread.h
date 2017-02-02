@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include <threads/synch.h>
 
 #ifdef USERPROG
 #include "filesys/filesys.h"
@@ -102,6 +103,9 @@ struct thread
     uint32_t *pagedir;                  /* Page directory. */
     struct file *file_list[128]; /* File descriptor is index+2 */
 #endif
+
+    /* Semaphore for thread*/
+    struct semaphore thread_sema;
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */

@@ -20,6 +20,9 @@
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
 
+/* List of sleeping threads */
+static struct list wait_queue;  
+
 /* Number of loops per timer tick.
    Initialized by timer_calibrate(). */
 static unsigned loops_per_tick;
@@ -44,6 +47,8 @@ timer_init (void)
   outb (0x40, count >> 8);
 
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
+
+  list_init(&wait_queue);
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -92,6 +97,13 @@ timer_elapsed (int64_t then)
   return timer_ticks () - then;
 }
 
+/* returns true if a is less or greater than b */
+bool
+sleeping_node_compare(const struct list_elem *a, const struct list_elem *b, void *aux) 
+{
+  return list_entry(a,struct sleeping_node, elem)->wakeup_tick <= list_entry(b, struct sleeping_node, elem)->wakeup_tick;
+}
+
 /* Suspends execution for approximately TICKS timer ticks. */
 void
 timer_sleep (int64_t ticks) 
@@ -99,8 +111,15 @@ timer_sleep (int64_t ticks)
   int64_t start = timer_ticks ();
 
   ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+
+  struct thread *curr_thread = thread_current();
+  sema_down(&curr_thread->thread_sema); 
+  struct sleeping_node *new_node = malloc(sizeof(struct sleeping_node));
+  
+  new_node->sleeping_thread = curr_thread;
+  new_node->wakeup_tick = start + ticks;
+  list_insert_ordered(&wait_queue, &new_node->elem, &sleeping_node_compare, NULL);
+  
 }
 
 /* Suspends execution for approximately MS milliseconds. */
