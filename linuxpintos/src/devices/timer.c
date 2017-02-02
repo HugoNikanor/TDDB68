@@ -114,15 +114,18 @@ timer_sleep (int64_t ticks)
 
   struct thread *curr_thread = thread_current();
 
-  printf("Sema: %i", curr_thread->thread_sema.value);
-  printf("inserting %s \n", curr_thread->name);
-  sema_down(&curr_thread->thread_sema);
-  struct sleeping_node *new_node = malloc(sizeof(struct sleeping_node));
+  /*struct sleeping_node *new_node = malloc(sizeof(struct sleeping_node));
 
   new_node->sleeping_thread = curr_thread;
   new_node->wakeup_tick = start + ticks;
   list_insert_ordered(&wait_queue, &new_node->elem, &sleeping_node_compare, NULL);
-  printf("Insert oredered");
+  */
+  struct sleeping_node new_node;
+  new_node.sleeping_thread = curr_thread;
+  new_node.wakeup_tick = start + ticks;
+  list_insert_ordered(&wait_queue, &new_node.elem, &sleeping_node_compare, NULL);
+
+  sema_down(&curr_thread->thread_sema);
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -158,19 +161,23 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
-
-  //printf("tick %i \n", list_size(&wait_queue));
   
   //Check sleeping processes and wake up if sleeping time is done.
+  /*
   while(!list_empty(&wait_queue) && 
-	list_entry(list_head(&wait_queue), struct sleeping_node, elem)->wakeup_tick <= timer_ticks()){
+	list_entry(list_head(&wait_queue), struct sleeping_node, elem)->wakeup_tick <= ticks){
     struct sleeping_node *wakeup_node = list_entry(list_pop_front(&wait_queue), struct sleeping_node, elem);
+  */
 
-    printf("wakey wakey %s \n", wakeup_node->sleeping_thread->name);
-    sema_up(&wakeup_node->sleeping_thread->thread_sema);
-    printf("am wake\n");
-
+  struct list_elem *e;
+  for(e = list_begin(&wait_queue); e != list_end(&wait_queue); e = list_next(e)){
+    if(list_entry(e, struct sleeping_node, elem)->wakeup_tick <= ticks){
+      struct sleeping_node *wakeup_node = list_entry(e, struct sleeping_node, elem);
+      sema_up(&wakeup_node->sleeping_thread->thread_sema);
+      
+      list_pop_front(&wait_queue);
     //free(wakeup_node);
+    }
   }
 
   thread_tick ();
