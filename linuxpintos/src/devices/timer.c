@@ -7,7 +7,7 @@
 #include "threads/io.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
-  
+
 /* See [8254] for hardware details of the 8254 timer chip. */
 
 #if TIMER_FREQ < 19
@@ -106,20 +106,20 @@ sleeping_node_compare(const struct list_elem *a, const struct list_elem *b, void
 
 /* Suspends execution for approximately TICKS timer ticks. */
 void
-timer_sleep (int64_t ticks) 
+timer_sleep (int64_t ticks)
 {
   int64_t start = timer_ticks ();
 
   ASSERT (intr_get_level () == INTR_ON);
 
   struct thread *curr_thread = thread_current();
-  sema_down(&curr_thread->thread_sema); 
+
+  sema_down(&curr_thread->thread_sema);
   struct sleeping_node *new_node = malloc(sizeof(struct sleeping_node));
-  
+
   new_node->sleeping_thread = curr_thread;
   new_node->wakeup_tick = start + ticks;
   list_insert_ordered(&wait_queue, &new_node->elem, &sleeping_node_compare, NULL);
-  
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -155,6 +155,17 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
+
+  //Check sleeping processes and wake up if sleeping time is done.
+  while(!list_empty(&wait_queue) && 
+	list_entry(list_head(&wait_queue), struct sleeping_node, elem)->wakeup_tick <= timer_ticks()){
+    struct sleeping_node *wakeup_node = list_entry(list_pop_front(&wait_queue), struct sleeping_node, elem);
+
+    sema_up(&wakeup_node->sleeping_thread->thread_sema);
+
+    //free(wakeup_node);
+  }
+
   thread_tick ();
 }
 
