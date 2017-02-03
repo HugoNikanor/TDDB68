@@ -117,7 +117,10 @@ timer_sleep (int64_t ticks)
   struct sleeping_node new_node;
   new_node.sleeping_thread = curr_thread;
   new_node.wakeup_tick = start + ticks;
+
+  intr_disable();
   list_insert_ordered(&wait_queue, &new_node.elem, &sleeping_node_compare, NULL);
+  intr_enable();
 
   sema_down(&curr_thread->thread_sema);
 }
@@ -155,14 +158,18 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
+
+  enum intr_level old_level;
   
   //Check sleeping processes and wake up if sleeping time is done.
+  old_level = intr_disable ();
   while(!list_empty(&wait_queue) && 
 	list_entry(list_front(&wait_queue), struct sleeping_node, elem)->wakeup_tick <= ticks){
     struct sleeping_node *wakeup_node = list_entry(list_pop_front(&wait_queue), struct sleeping_node, elem);
 
     sema_up(&wakeup_node->sleeping_thread->thread_sema);
   }
+  intr_set_level (old_level);
 
   thread_tick ();
 }
@@ -229,4 +236,5 @@ real_time_sleep (int64_t num, int32_t denom)
       busy_wait (loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000)); 
     }
 }
+
 
