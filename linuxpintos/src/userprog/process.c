@@ -47,12 +47,31 @@ process_execute (const char *file_name)
   ps.file_name = fn_copy;
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, &ps);
+  thread_create (file_name, PRI_DEFAULT, start_process, &ps);
 
   sema_down(&sema);
 
-  if (tid == TID_ERROR)
+  if (tid == TID_ERROR){
     palloc_free_page (fn_copy); 
+  }
+  else{
+    //Initialize the child_parent_relation structure for the threads
+    struct thread *parent_thread = thread_current();
+    struct thread *child_thread = ps.child_thread;
+    struct parent_child_relation *pcr = (struct parent_child_relation*)malloc(sizeof(struct parent_child_relation));
+    lock_init(&pcr->count_lock);
+    pcr->alive_count = 2;
+    sema_init(&pcr->child_killed, 0);
+
+    child_thread->parent_relation = pcr;
+    struct pid_node *new_node = (struct pin_node*)malloc(sizeof(struct pid_node));
+    new_node->pid = tid;
+    new_node->pcr = pcr;
+
+    list_insert_ordered(&parent_thread->children_list, &new_node->elem, &pid_node_compare, NULL);
+
+    //TODO prevent child process from starting execution before pcr is initalized
+  }
   return tid;
 }
 
@@ -61,7 +80,7 @@ process_execute (const char *file_name)
 static void
 start_process (void *ps_)
 {
-  processs_starter *ps = ps_;
+  struct process_starter *ps = ps_;
   char *file_name = ps->file_name;
   struct intr_frame if_;
   bool success;
@@ -81,7 +100,7 @@ start_process (void *ps_)
     thread_exit ();
   }
   else{
-    *(ps->tid) = thread_current->tid;
+    *(ps->tid) = thread_tid();
     sema_up(ps->sema);
   }
 

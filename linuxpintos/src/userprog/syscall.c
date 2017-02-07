@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
-#include "threads/thread.h"
 #include "threads/init.h"
 #include "filesys/filesys.h"
 #include "filesys/file.h"
@@ -67,7 +66,12 @@ syscall_handler (struct intr_frame *f UNUSED)
     }
     case SYS_EXEC: {
       char *cmd_line_exec = *((char**)sp);
-      exec(cmd_line_exec);
+      f->eax = exec(cmd_line_exec);
+      break;
+    }
+    case SYS_WAIT:{
+      tid_t pid = *((tid_t*)sp);
+      f->eax = wait(pid);
       break;
     }
   }
@@ -173,8 +177,6 @@ write(int fd, void *buffer, unsigned size){
     struct thread *cur_thread = thread_current();
     struct file *write_file = cur_thread->file_list[fd-2];
 
-    printf("write file is %i\n", write_file);
-
     if(write_file == NULL){
       return -1;
     }
@@ -195,13 +197,38 @@ write(int fd, void *buffer, unsigned size){
 
 void
 exit(int status) {
+  printf("%s: exit(%d)\n", thread_current()->name, status);
+  
+  struct thread *cur_thread = thread_current();
+  cur_thread->parent_relation->exit_status = status;
+
   thread_exit();
 }
 
-pid_t 
+tid_t 
 exec(const char *cmd_line){
-  process_execute(cmd_line);
+  return process_execute(cmd_line);
 }
 
+int wait(tid_t pid){
+  struct thread *cur_thread = thread_current();
 
+  struct list_elem *e;
+  for(e = list_begin(&cur_thread->children_list); e != list_end(&cur_thread->children_list); e = list_next(e)){
+    struct pid_node *p_node = list_entry(e, struct pid_node, elem);
+    if(p_node->pid == pid){
+      //Found correct node
+      struct parent_child_relation *pcr = p_node->pcr;
 
+      //Destroy and remove p_node
+      list_remove(e);
+      free(p_node);
+
+      //Actually do wait
+      sema_down(&pcr->child_killed);
+      return pcr->exit_status;
+    }
+  }
+
+  return -1;
+}

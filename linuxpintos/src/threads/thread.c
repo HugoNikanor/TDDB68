@@ -202,6 +202,12 @@ thread_create (const char *name, int priority,
   }
   #endif
 
+  list_init(&t->children_list);
+
+  //Add pointer to created thread to process_starter structure
+  struct process_starter *ps = aux;
+  ps->child_thread = t;
+  
   return tid;
 }
 
@@ -283,10 +289,10 @@ thread_exit (void)
 {
   ASSERT (!intr_context ());
 
+  struct thread *cur_thread = thread_current();
+
 #ifdef USERPROG
   //Free memory of file_list
-  struct thread *cur_thread = thread_current();
-  
   int i;
   for(i = 0; i < 128 && cur_thread->file_list[i] != NULL; i++){
     file_close(cur_thread->file_list[i]);
@@ -294,6 +300,20 @@ thread_exit (void)
 
   process_exit ();
 #endif
+
+  //Free memory for child_list
+  struct list_elem *next;
+  struct list_elem *e;
+  for(e = list_begin(&cur_thread->children_list); e != list_end(&cur_thread->children_list); e = next){
+    next = list_next(e);
+    struct pid_node *p_node = list_entry(e, struct pid_node, elem);
+    dec_and_free(p_node->pcr);
+    free(p_node);
+  }
+
+  //Free memory of parent_child_relation
+  sema_up(&cur_thread->parent_relation->child_killed);
+  dec_and_free(cur_thread->parent_relation);
 
   /* Just set our status to dying and schedule another process.
      We will be destroyed during the call to schedule_tail(). */
@@ -568,3 +588,22 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+bool
+pid_node_compare(const struct list_elem *a, const struct list_elem *b, void *aux) 
+{
+  return list_entry(a,struct pid_node, elem)->pid <= list_entry(b, struct pid_node, elem)->pid;
+}
+
+void dec_and_free(struct parent_child_relation *pcr){
+  bool free_mem = false;
+  lock_acquire(&pcr->count_lock);
+  pcr->alive_count -= 1;
+  
+  free_mem = (pcr->alive_count == 0);
+  lock_release(&pcr->count_lock);
+
+  if(free_mem){
+    free(pcr);
+  }
+}

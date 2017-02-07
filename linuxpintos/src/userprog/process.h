@@ -13,6 +13,7 @@ struct process_starter{
   struct semaphore *sema;
   tid_t *tid;
   void *file_name;
+  struct thread *child_thread;
 };
 
 #endif /* userprog/process.h */

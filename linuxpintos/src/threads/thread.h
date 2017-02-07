@@ -107,6 +107,10 @@ struct thread
     /* Semaphore for thread*/
     struct semaphore thread_sema;
 
+    /*For relation to parent and children*/
+    struct parent_child_relation *parent_relation;
+    struct list children_list;
+
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
@@ -143,4 +147,20 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
+struct parent_child_relation{
+  int exit_status; //Exit status of child
+  int alive_count;
+  struct lock count_lock;
+  struct semaphore child_killed; //Is only upped when the child dies
+};
+
+bool pid_node_compare(const struct list_elem *a, const struct list_elem *b, void *aux);
+
+struct pid_node{
+  tid_t pid;
+  struct parent_child_relation *pcr;
+  struct list_elem elem;
+};
+
+void dec_and_free(struct parent_child_relation *pcr);
 #endif /* threads/thread.h */
