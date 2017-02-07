@@ -65,6 +65,11 @@ syscall_handler (struct intr_frame *f UNUSED)
       exit(0);
       break;
     }
+    case SYS_EXEC: {
+      char *cmd_line_exec = *((char**)sp);
+      exec(cmd_line_exec);
+      break;
+    }
   }
 }
 
@@ -192,3 +197,11 @@ void
 exit(int status) {
   thread_exit();
 }
+
+pid_t 
+exec(const char *cmd_line){
+  process_execute(cmd_line);
+}
+
+
+

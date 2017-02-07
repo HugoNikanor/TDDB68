@@ -38,8 +38,19 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  struct semaphore sema;
+  sema_init(&sema, 0);
+  
+  struct process_starter ps;
+  ps.sema = &sema;
+  ps.tid = &tid;
+  ps.file_name = fn_copy;
+
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (file_name, PRI_DEFAULT, start_process, &ps);
+
+  sema_down(&sema);
+
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -48,9 +59,10 @@ process_execute (const char *file_name)
 /* A thread function that loads a user process and starts it
    running. */
 static void
-start_process (void *file_name_)
+start_process (void *ps_)
 {
-  char *file_name = file_name_;
+  processs_starter *ps = ps_;
+  char *file_name = ps->file_name;
   struct intr_frame if_;
   bool success;
 
@@ -63,8 +75,15 @@ start_process (void *file_name_)
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success) 
+  if (!success){
+    *(ps->tid) = TID_ERROR;
+    sema_up(ps->sema);
     thread_exit ();
+  }
+  else{
+    *(ps->tid) = thread_current->tid;
+    sema_up(ps->sema);
+  }
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
