@@ -18,6 +18,7 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
+
   void* sp = f->esp;
   int id = *((int*)(sp));
 

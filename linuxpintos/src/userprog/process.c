@@ -38,18 +38,22 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
-  struct semaphore sema;
-  sema_init(&sema, 0);
+  struct semaphore child_sema;
+  struct semaphore parent_sema;
+  sema_init(&child_sema, 0);
+  sema_init(&parent_sema, 0);
+  
   
   struct process_starter ps;
-  ps.sema = &sema;
+  ps.child_wait = &child_sema;
+  ps.parent_wait = &parent_sema;
   ps.tid = &tid;
   ps.file_name = fn_copy;
 
   /* Create a new thread to execute FILE_NAME. */
   thread_create (file_name, PRI_DEFAULT, start_process, &ps);
 
-  sema_down(&sema);
+  sema_down(&parent_sema);
 
   if (tid == TID_ERROR){
     palloc_free_page (fn_copy); 
@@ -70,8 +74,9 @@ process_execute (const char *file_name)
 
     list_insert_ordered(&parent_thread->children_list, &new_node->elem, &pid_node_compare, NULL);
 
-    //TODO prevent child process from starting execution before pcr is initalized
+    sema_up(&child_sema);
   }
+
   return tid;
 }
 
@@ -100,13 +105,16 @@ start_process (void *ps_)
   palloc_free_page (file_name);
   if (!success){
     *(ps->tid) = TID_ERROR;
-    sema_up(ps->sema);
+    sema_up(ps->parent_wait);
     thread_exit ();
   }
   else{
     *(ps->tid) = thread_tid();
-    sema_up(ps->sema);
+    sema_up(ps->parent_wait);
   }
+
+  //Wait until parent_child_relation is fully initialized
+  sema_down(ps->child_wait);
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -255,9 +263,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
+  char *token; 
   off_t file_ofs;
   bool success = false;
-  int i;
 
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
@@ -269,14 +277,79 @@ load (const char *file_name, void (**eip) (void), void **esp)
   if (!setup_stack (esp)){
     goto done;
   }
+  
+  //Copy file_name to s
+  char s[256];
+  strlcpy(s, file_name, 256);
+
+  char *save_ptr;
+
+  char *string_list[32]; 
+  int i = 0; //i is amount of arguments (including program name)
+  for(token = strtok_r (s, " ", &save_ptr); token != NULL; token = strtok_r (NULL, " ", &save_ptr)) {
+    string_list[i] = token;
+    i++;
+  }
+  
+  void **esp_copy = esp;
+  void **argv[32];
+
+  int j;
+  char* cur_string;
+  for(j = (i-1); j>=0; j--) { 
+    cur_string =  string_list[j];
+    argv[j] = esp_copy;
+
+    //Push cur_string to stack
+    char* start = (cur_string - 1);
+    
+    //Get to last char
+    while(*cur_string != '\0'){
+      cur_string++;
+    }
+
+    for(;cur_string != start; cur_string--){
+      //Write one letter
+      *esp_copy = *cur_string;
+      esp_copy--;
+    }
+  }
+
+  //Make divisible by 4
+  esp_copy -= (int)esp_copy % 4;
+
+  //Push NULL
+  *esp_copy = NULL;
+  esp_copy -= 4;
+
+  //Push all of argv
+  for(j = (i-1); j>=0; j--){
+    *esp_copy = argv[j];
+    esp_copy -= 4;
+  }
+
+  //push argv
+  *esp_copy = (esp_copy + 4);
+  esp_copy -= 4;
+
+  //push argc
+  *esp_copy = i;
+  esp_copy -= 4;
+
+  //Push return adress
+  *esp_copy = NULL;
+  esp_copy -= 4;
+
+  //?
+  //esp = esp_copy;
 
    /* Uncomment the following line to print some debug
      information. This will be useful when you debug the program
      stack.*/
-/*#define STACK_DEBUG*/
+#define STACK_DEBUG
 
 #ifdef STACK_DEBUG
-  printf("*esp is %p\nstack contents:\n", *esp);
+  printf("*esp is %p\nstack contents:\n", esp);
   hex_dump((int)*esp , *esp, PHYS_BASE-*esp+16, true);
   /* The same information, only more verbose: */
   /* It prints every byte as if it was a char and every 32-bit aligned
@@ -520,7 +593,7 @@ setup_stack (void **esp)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
-        *esp = PHYS_BASE - 12;
+        *esp = PHYS_BASE;
       else
         palloc_free_page (kpage);
     }

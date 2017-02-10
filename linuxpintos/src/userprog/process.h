@@ -10,7 +10,8 @@ void process_exit (void);
 void process_activate (void);
 
 struct process_starter{
-  struct semaphore *sema;
+  struct semaphore *child_wait;
+  struct semaphore *parent_wait;
   tid_t *tid;
   void *file_name;
   struct thread *child_thread;

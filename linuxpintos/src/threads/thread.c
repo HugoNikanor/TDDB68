@@ -299,16 +299,10 @@ thread_exit (void)
 
   if(cur_thread->tid != 0 && cur_thread->tid != 1){
     //Free memory for child_list (if list is not empty)
-    printf("Trying to delete\n");
     struct list_elem *next;
     struct list_elem *e;
 
-    //e = list_begin(&cur_thread->children_list);
-
-    printf("head %u\n", list_begin(&cur_thread->children_list));
-
-    for(e = list_begin(&cur_thread->children_list); e != list_end(&cur_thread->children_list); e = next){
-      printf("in loop");
+    for(e = list_begin(&cur_thread->children_list); e != list_end(&cur_thread->children_list); e = next){;
       next = list_next(e);
       struct pid_node *p_node = list_entry(e, struct pid_node, elem);
       dec_and_free(p_node->pcr);
