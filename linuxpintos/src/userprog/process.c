@@ -82,6 +82,10 @@ start_process (void *ps_)
 {
   struct process_starter *ps = ps_;
   char *file_name = ps->file_name;
+
+  //Add pointer to created thread to process_starter structure
+  ps->child_thread = thread_current();
+
   struct intr_frame if_;
   bool success;
 
