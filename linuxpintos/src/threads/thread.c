@@ -202,10 +202,7 @@ thread_create (const char *name, int priority,
   }
   #endif
 
-
-  /*printf("INIT LIST\n");
   list_init(&t->children_list);
-  printf("thread %u\n", t);*/
 
   return tid;
 }

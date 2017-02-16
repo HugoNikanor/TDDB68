@@ -38,22 +38,16 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
-  struct semaphore child_sema;
-  struct semaphore parent_sema;
-  sema_init(&child_sema, 0);
-  sema_init(&parent_sema, 0);
-  
-  
-  struct process_starter ps;
-  ps.child_wait = &child_sema;
-  ps.parent_wait = &parent_sema;
-  ps.tid = &tid;
-  ps.file_name = fn_copy;
+  struct process_starter *ps = (struct process_starter *)malloc(sizeof(struct process_starter));
+  sema_init(&ps->child_wait, 0);
+  sema_init(&ps->parent_wait, 0);
+  ps->tid = &tid;
+  ps->file_name = fn_copy;
 
   /* Create a new thread to execute FILE_NAME. */
-  thread_create (file_name, PRI_DEFAULT, start_process, &ps);
+  thread_create (file_name, PRI_DEFAULT, start_process, ps);
 
-  sema_down(&parent_sema);
+  sema_down(&ps->parent_wait);
 
   if (tid == TID_ERROR){
     palloc_free_page (fn_copy); 
@@ -61,7 +55,7 @@ process_execute (const char *file_name)
   else{
     //Initialize the child_parent_relation structure for the threads
     struct thread *parent_thread = thread_current();
-    struct thread *child_thread = ps.child_thread;
+    struct thread *child_thread = ps->child_thread;
     struct parent_child_relation *pcr = (struct parent_child_relation*)malloc(sizeof(struct parent_child_relation));
     lock_init(&pcr->count_lock);
     pcr->alive_count = 2;
@@ -74,8 +68,10 @@ process_execute (const char *file_name)
 
     list_insert_ordered(&parent_thread->children_list, &new_node->elem, &pid_node_compare, NULL);
 
-    sema_up(&child_sema);
+    sema_up(&ps->child_wait);
   }
+
+  printf("Done with pe\n");
 
   return tid;
 }
@@ -105,16 +101,17 @@ start_process (void *ps_)
   palloc_free_page (file_name);
   if (!success){
     *(ps->tid) = TID_ERROR;
-    sema_up(ps->parent_wait);
+    sema_up(&ps->parent_wait);
     thread_exit ();
   }
   else{
     *(ps->tid) = thread_tid();
-    sema_up(ps->parent_wait);
+    sema_up(&ps->parent_wait);
   }
 
   //Wait until parent_child_relation is fully initialized
-  sema_down(ps->child_wait);
+  sema_down(&ps->child_wait);
+  free(ps);
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -290,15 +287,18 @@ load (const char *file_name, void (**eip) (void), void **esp)
     string_list[i] = token;
     i++;
   }
-  
-  void **esp_copy = esp;
+
+  file_name = string_list[0]; 
+
+  void *esp_copy = *esp;
   void **argv[32];
 
   int j;
   char* cur_string;
+
+  esp_copy--;
   for(j = (i-1); j>=0; j--) { 
     cur_string =  string_list[j];
-    argv[j] = esp_copy;
 
     //Push cur_string to stack
     char* start = (cur_string - 1);
@@ -310,43 +310,45 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
     for(;cur_string != start; cur_string--){
       //Write one letter
-      *esp_copy = *cur_string;
+      *((char*)esp_copy) = *cur_string;
       esp_copy--;
     }
+    argv[j] = esp_copy + 1;
   }
 
   //Make divisible by 4
-  esp_copy -= (int)esp_copy % 4;
+  esp_copy -= 3;
+  esp_copy -= (unsigned)esp_copy % 4;
 
   //Push NULL
-  *esp_copy = NULL;
+  *((void**)esp_copy) = NULL;
   esp_copy -= 4;
 
   //Push all of argv
   for(j = (i-1); j>=0; j--){
-    *esp_copy = argv[j];
+    *((void**)esp_copy) = argv[j];
     esp_copy -= 4;
   }
 
   //push argv
-  *esp_copy = (esp_copy + 4);
+  *((void**)esp_copy) = (esp_copy + 4);
   esp_copy -= 4;
 
   //push argc
-  *esp_copy = i;
+  *((int*)esp_copy) = i;
   esp_copy -= 4;
 
   //Push return adress
-  *esp_copy = NULL;
-  esp_copy -= 4;
+  *((void**)esp_copy) = NULL;
+  //esp_copy -= 4;
 
   //?
-  //esp = esp_copy;
+  *esp = esp_copy;
 
    /* Uncomment the following line to print some debug
      information. This will be useful when you debug the program
      stack.*/
-#define STACK_DEBUG
+  //#define STACK_DEBUG
 
 #ifdef STACK_DEBUG
   printf("*esp is %p\nstack contents:\n", esp);
