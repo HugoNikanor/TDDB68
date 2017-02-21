@@ -202,8 +202,6 @@ thread_create (const char *name, int priority,
   }
   #endif
 
-  list_init(&t->children_list);
-
   return tid;
 }
 
@@ -294,25 +292,28 @@ thread_exit (void)
     file_close(cur_thread->file_list[i]);
   }
 
-  if(cur_thread->tid != 0 && cur_thread->tid != 1){
-    //Free memory for child_list (if list is not empty)
-    struct list_elem *next;
-    struct list_elem *e;
+  if(cur_thread->init_correctly){
+    if(cur_thread->tid != 0 && cur_thread->tid != 1){
+      //Free memory for child_list (if list is not empty)
+      struct list_elem *next;
+      struct list_elem *e;
 
-    for(e = list_begin(&cur_thread->children_list); e != list_end(&cur_thread->children_list); e = next){;
-      next = list_next(e);
-      struct pid_node *p_node = list_entry(e, struct pid_node, elem);
-      dec_and_free(p_node->pcr);
-      free(p_node);
+      for(e = list_begin(&cur_thread->children_list); e != list_end(&cur_thread->children_list); e = next){
+        next = list_next(e);
+        struct pid_node *p_node = list_entry(e, struct pid_node, elem);
+        dec_and_free(p_node->pcr);
+        free(p_node); 
+      }
+
+      //Free memory of parent_child_relation
+      sema_up(&cur_thread->parent_relation->child_killed);
+      dec_and_free(cur_thread->parent_relation);
     }
-
-    //Free memory of parent_child_relation
-    sema_up(&cur_thread->parent_relation->child_killed);
-    dec_and_free(cur_thread->parent_relation);
   }
-  
+ 
   process_exit ();
 #endif
+
   /* Just set our status to dying and schedule another process.
      We will be destroyed during the call to schedule_tail(). */
   intr_disable ();
@@ -473,6 +474,7 @@ init_thread (struct thread *t, const char *name, int priority)
 
   sema_init(&t->thread_sema, 0);
   list_init(&t->children_list);
+  t->init_correctly = true;
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

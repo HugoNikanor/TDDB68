@@ -65,7 +65,6 @@ process_execute (const char *file_name)
     struct pid_node *new_node = (struct pin_node*)malloc(sizeof(struct pid_node));
     new_node->pid = tid;
     new_node->pcr = pcr;
-    new_node->parent_waited = false;
 
     list_insert_ordered(&parent_thread->children_list, &new_node->elem, &pid_node_compare, NULL);
 
@@ -89,18 +88,22 @@ start_process (void *ps_)
   struct intr_frame if_;
   bool success;
 
-  /* Initialize interrupt frame and load executable. */
+  /* Initialize interrupt frame and executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
-
+  
   /* If load failed, quit. */
-  palloc_free_page (file_name);
   if (!success){
+    thread_current()->init_correctly = false;
     *(ps->tid) = TID_ERROR;
     sema_up(&ps->parent_wait);
+
+    //Wait until parent_child_relation is fully initialized 
+    free(ps);
+
     thread_exit ();
   }
   else{
@@ -108,6 +111,7 @@ start_process (void *ps_)
     sema_up(&ps->parent_wait);
   }
 
+  palloc_free_page (file_name);
   //Wait until parent_child_relation is fully initialized
   sema_down(&ps->child_wait);
   free(ps);
@@ -134,9 +138,28 @@ start_process (void *ps_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  while(true){
-    //lel
+  struct thread *cur_thread = thread_current();
+
+  struct list_elem *e;
+  for(e = list_begin(&cur_thread->children_list); e != list_end(&cur_thread->children_list); e = list_next(e)){
+    struct pid_node *p_node = list_entry(e, struct pid_node, elem);
+    if(p_node->pid == child_tid){
+      //Found correct node
+      struct parent_child_relation *pcr = p_node->pcr;
+
+      //Actually do wait
+      sema_down(&pcr->child_killed);
+
+      list_remove(&p_node->elem);
+      free(p_node);
+
+      int exit_status = pcr->exit_status;
+      free(pcr);
+      return exit_status;
+    }
   }
+
+  return -1;
 }
 
 /* Free the current process's resources. */
@@ -288,6 +311,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   }
 
   file_name = string_list[0]; 
+  strlcpy(t->name, file_name, sizeof t->name); 
 
   void *esp_copy = *esp;
   void **argv[32];
@@ -339,10 +363,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   //Push return adress
   *((void**)esp_copy) = NULL;
-  //esp_copy -= 4;
 
-  //?
   *esp = esp_copy;
+
+  
 
    /* Uncomment the following line to print some debug
      information. This will be useful when you debug the program

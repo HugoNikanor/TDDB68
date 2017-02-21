@@ -21,9 +21,12 @@ syscall_handler (struct intr_frame *f UNUSED)
 {
 
   void* sp = f->esp;
+  if (!is_valid_pointer(sp)) {
+    exit(-1);
+  }
   int id = *((int*)(sp));
 
-  sp += 4;
+  update_sp(&sp);
 
   switch(id) {
     case SYS_HALT: {
@@ -32,7 +35,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     }
     case SYS_CREATE: {
       char *file_name = *((char**)(sp));
-      sp += 4;
+      update_sp(&sp);
       unsigned new_size = *((unsigned*)(sp));
       f->eax = create(file_name, new_size);
       break;
@@ -50,9 +53,9 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_READ:
     case SYS_WRITE: {
       int fd_rw = *((int*)(sp));
-      sp += 4;
+      update_sp(&sp);
       void *buffer = *((void**)sp);
-      sp += 4;
+      update_sp(&sp);
       unsigned buffer_size = *((unsigned*)(sp));
       if(id == SYS_WRITE){
 	f->eax = write(fd_rw, buffer, buffer_size);
@@ -63,7 +66,8 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     }
     case SYS_EXIT: {
-      exit(0);
+      int exit_status = *((int*)(sp));
+      exit(exit_status);
       break;
     }
     case SYS_EXEC: {
@@ -76,6 +80,14 @@ syscall_handler (struct intr_frame *f UNUSED)
       f->eax = wait(pid);
       break;
     }
+  }
+}
+
+void 
+update_sp(void **sp) {
+  (*sp) += 4;
+  if(!is_valid_pointer(*sp)) {
+    exit(-1); 
   }
 }
 
@@ -115,7 +127,7 @@ halt (void)
 bool
 create (const char *file, unsigned initial_size)
 {
-  if (initial_size == 0 || !is_valid_string(file))
+  if (!is_valid_string(file))
     {
       exit(-1);
     }
@@ -182,6 +194,9 @@ read(int fd, void *buffer, unsigned size){
     if(read_file == NULL){
       return -1;
     }
+    if(size == 0){
+      return 0;
+    }
 
     int read_bytes = file_read(read_file, buffer, (off_t)size);
 
@@ -203,6 +218,7 @@ write(int fd, void *buffer, unsigned size){
   if (!is_valid_buffer(buffer, size)) {
     exit(-1);
   }
+  
 
   if(fd == 1){
     //write to console
@@ -228,6 +244,10 @@ write(int fd, void *buffer, unsigned size){
     if(write_file == NULL){
       return -1;
     }
+
+    if(size == 0) {
+      return 0; 
+    }
     
     int written_bytes = file_write(write_file, buffer, size);
 
@@ -239,7 +259,7 @@ write(int fd, void *buffer, unsigned size){
     } 
   }
   else{
-    return -1
+    return -1;
   }
 }
 
@@ -266,26 +286,5 @@ int wait(tid_t pid){
     exit(-1);
   }
 
-  struct thread *cur_thread = thread_current();
-
-  struct list_elem *e;
-  for(e = list_begin(&cur_thread->children_list); e != list_end(&cur_thread->children_list); e = list_next(e)){
-    struct pid_node *p_node = list_entry(e, struct pid_node, elem);
-    if(p_node->pid == pid){
-      //Found correct node
-      struct parent_child_relation *pcr = p_node->pcr;
-
-      if(p_node->parent_waited){
-	return -1;
-      }
-      else{
-	//Actually do wait
-	sema_down(&pcr->child_killed);
-	p_node->parent_waited = true;
-	return pcr->exit_status;
-      }
-    }
-  }
-
-  exit(-1);
+  return process_wait(pid);
 }

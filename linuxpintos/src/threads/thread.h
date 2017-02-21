@@ -110,6 +110,7 @@ struct thread
     /*For relation to parent and children*/
     struct parent_child_relation *parent_relation;
     struct list children_list;
+    bool init_correctly;
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
@@ -158,7 +159,6 @@ bool pid_node_compare(const struct list_elem *a, const struct list_elem *b, void
 
 struct pid_node{
   tid_t pid;
-  bool parent_waited;
   struct parent_child_relation *pcr;
   struct list_elem elem;
 };
