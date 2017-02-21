@@ -65,13 +65,12 @@ process_execute (const char *file_name)
     struct pid_node *new_node = (struct pin_node*)malloc(sizeof(struct pid_node));
     new_node->pid = tid;
     new_node->pcr = pcr;
+    new_node->parent_waited = false;
 
     list_insert_ordered(&parent_thread->children_list, &new_node->elem, &pid_node_compare, NULL);
 
     sema_up(&ps->child_wait);
   }
-
-  printf("Done with pe\n");
 
   return tid;
 }

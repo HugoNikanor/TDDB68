@@ -158,6 +158,7 @@ bool pid_node_compare(const struct list_elem *a, const struct list_elem *b, void
 
 struct pid_node{
   tid_t pid;
+  bool parent_waited;
   struct parent_child_relation *pcr;
   struct list_elem elem;
 };

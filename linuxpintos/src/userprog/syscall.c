@@ -6,6 +6,7 @@
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include "devices/input.h"
+#include "threads/vaddr.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -78,6 +79,33 @@ syscall_handler (struct intr_frame *f UNUSED)
   }
 }
 
+bool
+is_valid_pointer(void *ptr) {
+  return (ptr < PHYS_BASE && pagedir_get_page(thread_current()->pagedir, ptr) != NULL);
+}
+
+bool
+is_valid_string(char *string) {
+  do{
+    if(!is_valid_pointer(string)){
+      return false;
+    }
+  }while(*(string++) != '\0');
+  return true;
+}
+
+bool
+is_valid_buffer(void *buffer, unsigned size) {
+  unsigned i;
+  for(i = 0; i < size; i++) {
+    if(!is_valid_pointer(buffer)) {
+      return false; 
+    }
+    buffer++; 
+  }
+  return true; 
+}
+
 void
 halt (void) 
 {
@@ -87,11 +115,18 @@ halt (void)
 bool
 create (const char *file, unsigned initial_size)
 {
+  if (initial_size == 0 || !is_valid_string(file))
+    {
+      exit(-1);
+    }
   return filesys_create(file, initial_size);
 }
 
 int
 open (const char *file_name){
+  if (!is_valid_string(file_name)) {
+      exit(-1);
+  }
   struct file *f = filesys_open(file_name);
 
   if(f == NULL){
@@ -114,6 +149,10 @@ open (const char *file_name){
 
 void
 close(int fd){
+  if (fd < 2 || fd > 129) {
+     exit(-1);
+  }
+
   struct thread *cur_thread = thread_current();
   struct file *close_file = cur_thread->file_list[fd-2];
 
@@ -123,6 +162,10 @@ close(int fd){
 
 int 
 read(int fd, void *buffer, unsigned size){
+  if (!is_valid_buffer(buffer, size)) {
+    exit(-1);
+  }
+  
   if(fd == 0){
     //Read from console
     unsigned i = 0;
@@ -157,6 +200,10 @@ read(int fd, void *buffer, unsigned size){
 
 int 
 write(int fd, void *buffer, unsigned size){
+  if (!is_valid_buffer(buffer, size)) {
+    exit(-1);
+  }
+
   if(fd == 1){
     //write to console
     int remaining_bytes = size;
@@ -192,7 +239,7 @@ write(int fd, void *buffer, unsigned size){
     } 
   }
   else{
-    return -1;
+    return -1
   }
 }
 
@@ -208,10 +255,17 @@ exit(int status) {
 
 tid_t 
 exec(const char *cmd_line){
+  if(!is_valid_string(cmd_line)) {
+    exit(-1);  
+  }
   return process_execute(cmd_line);
 }
 
 int wait(tid_t pid){
+  if (pid == TID_ERROR) {
+    exit(-1);
+  }
+
   struct thread *cur_thread = thread_current();
 
   struct list_elem *e;
@@ -221,15 +275,17 @@ int wait(tid_t pid){
       //Found correct node
       struct parent_child_relation *pcr = p_node->pcr;
 
-      //Destroy and remove p_node
-      list_remove(e);
-      free(p_node);
-
-      //Actually do wait
-      sema_down(&pcr->child_killed);
-      return pcr->exit_status;
+      if(p_node->parent_waited){
+	return -1;
+      }
+      else{
+	//Actually do wait
+	sema_down(&pcr->child_killed);
+	p_node->parent_waited = true;
+	return pcr->exit_status;
+      }
     }
   }
 
-  return -1;
+  exit(-1);
 }
