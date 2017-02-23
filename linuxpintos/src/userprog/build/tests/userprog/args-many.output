@@ -1,6 +1,6 @@
-Copying tests/userprog/args-many into /tmp/LlO3YbSyFp.dsk...
-Writing command line to /tmp/o8U4HEGp9g.dsk...
-qemu -hda /tmp/o8U4HEGp9g.dsk -hdb /tmp/3uTUQ4wOQg.dsk -hdc /tmp/LlO3YbSyFp.dsk -m 4 -net none -nographic -monitor null
+Copying tests/userprog/args-many into /tmp/WSDdA0mSTV.dsk...
+Writing command line to /tmp/axaB6jttxV.dsk...
+qemu -hda /tmp/axaB6jttxV.dsk -hdb /tmp/jfSb5QeZL9.dsk -hdc /tmp/WSDdA0mSTV.dsk -m 4 -net none -nographic -monitor null
 Kernel command line: -q -f put args-many run 'args-many a b c d e f g h i j k l m n o p q r s t u v'
 Pintos booting with 4,088 kB RAM...
 372 pages available in kernel pool.
@@ -42,8 +42,8 @@ Executing 'args-many a b c d e f g h i j k l m n o p q r s t u v':
 (args) end
 args-many: exit(0)
 Execution of 'args-many a b c d e f g h i j k l m n o p q r s t u v' complete.
-Timer: 57 ticks
-Thread: 30 idle ticks, 25 kernel ticks, 2 user ticks
+Timer: 59 ticks
+Thread: 32 idle ticks, 25 kernel ticks, 2 user ticks
 hd0:0: 0 reads, 0 writes
 hd0:1: 59 reads, 202 writes
 hd1:0: 97 reads, 0 writes

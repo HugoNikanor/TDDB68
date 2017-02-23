@@ -45,10 +45,14 @@ process_execute (const char *file_name)
   ps->file_name = fn_copy;
 
   /* Create a new thread to execute FILE_NAME. */
-  thread_create (file_name, PRI_DEFAULT, start_process, ps);
+  if(thread_create (file_name, PRI_DEFAULT, start_process, ps) == TID_ERROR) {
+    tid = TID_ERROR; 
+  }
+  else {
+      sema_down(&ps->parent_wait);
+  }
 
-  sema_down(&ps->parent_wait);
-
+  /* tid will may have changed in start_process, check it once again */
   if (tid == TID_ERROR){
     palloc_free_page (fn_copy); 
   }
@@ -297,7 +301,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   }
   
-  //Copy file_name to s
+  //Copy file_name to s  
   char s[256];
   strlcpy(s, file_name, 256);
 
