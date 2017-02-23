@@ -37,6 +37,10 @@ struct inode
     bool removed;                       /* True if deleted, false otherwise. */
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
     struct inode_disk data;             /* Inode content. */
+
+    int readcount; //Currently reading from inode
+    semaphore wsem; //Semaphore for writers
+    semaphore rsem; //Semaphore for readers
   };
 
 /* Returns the disk sector that contains byte offset POS within
@@ -62,6 +66,9 @@ void
 inode_init (void) 
 {
   list_init (&open_inodes);
+
+  sema_init(&wsem, 1);
+  sema_init(&rsem, 1);
 }
 
 /* Initializes an inode with LENGTH bytes of data and
@@ -207,6 +214,14 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
   off_t bytes_read = 0;
   uint8_t *bounce = NULL;
 
+  //Synchronization
+  sema_down(&inode->rsem);
+  inode->readcount++;
+  if(inode->readcount == 1){
+    sema_down(&inode->wsem);
+  }
+  sema_up(&inode->rsem);
+
   while (size > 0) 
     {
       /* Disk sector to read, starting byte offset within sector. */
@@ -249,6 +264,14 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
     }
   free (bounce);
 
+  //Done reading, more synchronization
+  sema_down(&inode->rsem);
+  inode->readcount--;
+  if(inode->readcount == 0){
+    sema_up(&inode->wsem);
+  }
+  sema_up(&inode->rsem);
+
   return bytes_read;
 }
 
@@ -265,8 +288,14 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   off_t bytes_written = 0;
   uint8_t *bounce = NULL;
 
+  //Synchronization
+  sema_down(&inode->wsem);
+
+  //Old and bad??
+  /* 
   if (inode->deny_write_cnt)
     return 0;
+  */
 
   while (size > 0) 
     {
@@ -316,6 +345,9 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       bytes_written += chunk_size;
     }
   free (bounce);
+
+  //Synchronization, done writing
+  sema_up(&inode->wsem); 
 
   return bytes_written;
 }
