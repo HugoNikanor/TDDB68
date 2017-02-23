@@ -1,0 +1,604 @@
+diff --git a/linuxpintos/src/threads/thread.c b/linuxpintos/src/threads/thread.c
+index 3562897..2461929 100644
+--- a/linuxpintos/src/threads/thread.c
++++ b/linuxpintos/src/threads/thread.c
+@@ -283,15 +283,34 @@ thread_exit (void)
+ {
+   ASSERT (!intr_context ());
+ 
++  struct thread *cur_thread = thread_current();
++
+ #ifdef USERPROG
+   //Free memory of file_list
+-  struct thread *cur_thread = thread_current();
+-  
+   int i;
+   for(i = 0; i < 128 && cur_thread->file_list[i] != NULL; i++){
+     file_close(cur_thread->file_list[i]);
+   }
+ 
++  if(cur_thread->init_correctly){
++    if(cur_thread->tid != 0 && cur_thread->tid != 1){
++      //Free memory for child_list (if list is not empty)
++      struct list_elem *next;
++      struct list_elem *e;
++
++      for(e = list_begin(&cur_thread->children_list); e != list_end(&cur_thread->children_list); e = next){
++        next = list_next(e);
++        struct pid_node *p_node = list_entry(e, struct pid_node, elem);
++        dec_and_free(p_node->pcr);
++        free(p_node); 
++      }
++
++      //Free memory of parent_child_relation
++      sema_up(&cur_thread->parent_relation->child_killed);
++      dec_and_free(cur_thread->parent_relation);
++    }
++  }
++ 
+   process_exit ();
+ #endif
+ 
+@@ -300,6 +319,7 @@ thread_exit (void)
+   intr_disable ();
+   thread_current ()->status = THREAD_DYING;
+   schedule ();
++ 
+   NOT_REACHED ();
+ }
+ 
+@@ -453,6 +473,8 @@ init_thread (struct thread *t, const char *name, int priority)
+   t->magic = THREAD_MAGIC;
+ 
+   sema_init(&t->thread_sema, 0);
++  list_init(&t->children_list);
++  t->init_correctly = true;
+ }
+ 
+ /* Allocates a SIZE-byte frame at the top of thread T's stack and
+@@ -568,3 +590,22 @@ allocate_tid (void)
+ /* Offset of `stack' member within `struct thread'.
+    Used by switch.S, which can't figure it out on its own. */
+ uint32_t thread_stack_ofs = offsetof (struct thread, stack);
++
++bool
++pid_node_compare(const struct list_elem *a, const struct list_elem *b, void *aux) 
++{
++  return list_entry(a,struct pid_node, elem)->pid <= list_entry(b, struct pid_node, elem)->pid;
++}
++
++void dec_and_free(struct parent_child_relation *pcr){
++  bool free_mem = false;
++  lock_acquire(&pcr->count_lock);
++  pcr->alive_count -= 1;
++  
++  free_mem = (pcr->alive_count == 0);
++  lock_release(&pcr->count_lock);
++
++  if(free_mem){
++    free(pcr);
++  }
++}
+diff --git a/linuxpintos/src/threads/thread.h b/linuxpintos/src/threads/thread.h
+index 3eb0ceb..5b6821f 100644
+--- a/linuxpintos/src/threads/thread.h
++++ b/linuxpintos/src/threads/thread.h
+@@ -107,6 +107,11 @@ struct thread
+     /* Semaphore for thread*/
+     struct semaphore thread_sema;
+ 
++    /*For relation to parent and children*/
++    struct parent_child_relation *parent_relation;
++    struct list children_list;
++    bool init_correctly;
++
+     /* Owned by thread.c. */
+     unsigned magic;                     /* Detects stack overflow. */
+   };
+@@ -143,4 +148,20 @@ void thread_set_nice (int);
+ int thread_get_recent_cpu (void);
+ int thread_get_load_avg (void);
+ 
++struct parent_child_relation{
++  int exit_status; //Exit status of child
++  int alive_count;
++  struct lock count_lock;
++  struct semaphore child_killed; //Is only upped when the child dies
++};
++
++bool pid_node_compare(const struct list_elem *a, const struct list_elem *b, void *aux);
++
++struct pid_node{
++  tid_t pid;
++  struct parent_child_relation *pcr;
++  struct list_elem elem;
++};
++
++void dec_and_free(struct parent_child_relation *pcr);
+ #endif /* threads/thread.h */
+diff --git a/linuxpintos/src/userprog/process.c b/linuxpintos/src/userprog/process.c
+index 8c1e82f..70f57ad 100644
+--- a/linuxpintos/src/userprog/process.c
++++ b/linuxpintos/src/userprog/process.c
+@@ -38,33 +38,87 @@ process_execute (const char *file_name)
+     return TID_ERROR;
+   strlcpy (fn_copy, file_name, PGSIZE);
+ 
++  struct process_starter *ps = (struct process_starter *)malloc(sizeof(struct process_starter));
++  sema_init(&ps->child_wait, 0);
++  sema_init(&ps->parent_wait, 0);
++  ps->tid = &tid;
++  ps->file_name = fn_copy;
++
+   /* Create a new thread to execute FILE_NAME. */
+-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+-  if (tid == TID_ERROR)
++  if(thread_create (file_name, PRI_DEFAULT, start_process, ps) == TID_ERROR) {
++    tid = TID_ERROR; 
++  }
++  else {
++      sema_down(&ps->parent_wait);
++  }
++
++  /* tid will may have changed in start_process, check it once again */
++  if (tid == TID_ERROR){
+     palloc_free_page (fn_copy); 
++  }
++  else{
++    //Initialize the child_parent_relation structure for the threads
++    struct thread *parent_thread = thread_current();
++    struct thread *child_thread = ps->child_thread;
++    struct parent_child_relation *pcr = (struct parent_child_relation*)malloc(sizeof(struct parent_child_relation));
++    lock_init(&pcr->count_lock);
++    pcr->alive_count = 2;
++    sema_init(&pcr->child_killed, 0);
++
++    child_thread->parent_relation = pcr;
++    struct pid_node *new_node = (struct pin_node*)malloc(sizeof(struct pid_node));
++    new_node->pid = tid;
++    new_node->pcr = pcr;
++
++    list_insert_ordered(&parent_thread->children_list, &new_node->elem, &pid_node_compare, NULL);
++
++    sema_up(&ps->child_wait);
++  }
++
+   return tid;
+ }
+ 
+ /* A thread function that loads a user process and starts it
+    running. */
+ static void
+-start_process (void *file_name_)
++start_process (void *ps_)
+ {
+-  char *file_name = file_name_;
++  struct process_starter *ps = ps_;
++  char *file_name = ps->file_name;
++
++  //Add pointer to created thread to process_starter structure
++  ps->child_thread = thread_current();
++
+   struct intr_frame if_;
+   bool success;
+ 
+-  /* Initialize interrupt frame and load executable. */
++  /* Initialize interrupt frame and executable. */
+   memset (&if_, 0, sizeof if_);
+   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
+   if_.cs = SEL_UCSEG;
+   if_.eflags = FLAG_IF | FLAG_MBS;
+   success = load (file_name, &if_.eip, &if_.esp);
+-
++  
+   /* If load failed, quit. */
+-  palloc_free_page (file_name);
+-  if (!success) 
++  if (!success){
++    thread_current()->init_correctly = false;
++    *(ps->tid) = TID_ERROR;
++    sema_up(&ps->parent_wait);
++
++    //Wait until parent_child_relation is fully initialized 
++    free(ps);
++
+     thread_exit ();
++  }
++  else{
++    *(ps->tid) = thread_tid();
++    sema_up(&ps->parent_wait);
++  }
++
++  palloc_free_page (file_name);
++  //Wait until parent_child_relation is fully initialized
++  sema_down(&ps->child_wait);
++  free(ps);
+ 
+   /* Start the user process by simulating a return from an
+      interrupt, implemented by intr_exit (in
+@@ -88,9 +142,28 @@ start_process (void *file_name_)
+ int
+ process_wait (tid_t child_tid UNUSED) 
+ {
+-  while(true){
+-    //lel
++  struct thread *cur_thread = thread_current();
++
++  struct list_elem *e;
++  for(e = list_begin(&cur_thread->children_list); e != list_end(&cur_thread->children_list); e = list_next(e)){
++    struct pid_node *p_node = list_entry(e, struct pid_node, elem);
++    if(p_node->pid == child_tid){
++      //Found correct node
++      struct parent_child_relation *pcr = p_node->pcr;
++
++      //Actually do wait
++      sema_down(&pcr->child_killed);
++
++      list_remove(&p_node->elem);
++      free(p_node);
++
++      int exit_status = pcr->exit_status;
++      free(pcr);
++      return exit_status;
++    }
+   }
++
++  return -1;
+ }
+ 
+ /* Free the current process's resources. */
+@@ -213,9 +286,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
+   struct thread *t = thread_current ();
+   struct Elf32_Ehdr ehdr;
+   struct file *file = NULL;
++  char *token; 
+   off_t file_ofs;
+   bool success = false;
+-  int i;
+ 
+   /* Allocate and activate page directory. */
+   t->pagedir = pagedir_create ();
+@@ -227,14 +300,85 @@ load (const char *file_name, void (**eip) (void), void **esp)
+   if (!setup_stack (esp)){
+     goto done;
+   }
++  
++  //Copy file_name to s  
++  char s[256];
++  strlcpy(s, file_name, 256);
++
++  char *save_ptr;
++
++  char *string_list[32]; 
++  int i = 0; //i is amount of arguments (including program name)
++  for(token = strtok_r (s, " ", &save_ptr); token != NULL; token = strtok_r (NULL, " ", &save_ptr)) {
++    string_list[i] = token;
++    i++;
++  }
++
++  file_name = string_list[0]; 
++  strlcpy(t->name, file_name, sizeof t->name); 
++
++  void *esp_copy = *esp;
++  void **argv[32];
++
++  int j;
++  char* cur_string;
++
++  esp_copy--;
++  for(j = (i-1); j>=0; j--) { 
++    cur_string =  string_list[j];
++
++    //Push cur_string to stack
++    char* start = (cur_string - 1);
++    
++    //Get to last char
++    while(*cur_string != '\0'){
++      cur_string++;
++    }
++
++    for(;cur_string != start; cur_string--){
++      //Write one letter
++      *((char*)esp_copy) = *cur_string;
++      esp_copy--;
++    }
++    argv[j] = esp_copy + 1;
++  }
++
++  //Make divisible by 4
++  esp_copy -= 3;
++  esp_copy -= (unsigned)esp_copy % 4;
++
++  //Push NULL
++  *((void**)esp_copy) = NULL;
++  esp_copy -= 4;
++
++  //Push all of argv
++  for(j = (i-1); j>=0; j--){
++    *((void**)esp_copy) = argv[j];
++    esp_copy -= 4;
++  }
++
++  //push argv
++  *((void**)esp_copy) = (esp_copy + 4);
++  esp_copy -= 4;
++
++  //push argc
++  *((int*)esp_copy) = i;
++  esp_copy -= 4;
++
++  //Push return adress
++  *((void**)esp_copy) = NULL;
++
++  *esp = esp_copy;
++
++  
+ 
+    /* Uncomment the following line to print some debug
+      information. This will be useful when you debug the program
+      stack.*/
+-/*#define STACK_DEBUG*/
++  //#define STACK_DEBUG
+ 
+ #ifdef STACK_DEBUG
+-  printf("*esp is %p\nstack contents:\n", *esp);
++  printf("*esp is %p\nstack contents:\n", esp);
+   hex_dump((int)*esp , *esp, PHYS_BASE-*esp+16, true);
+   /* The same information, only more verbose: */
+   /* It prints every byte as if it was a char and every 32-bit aligned
+@@ -478,7 +622,7 @@ setup_stack (void **esp)
+     {
+       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+       if (success)
+-        *esp = PHYS_BASE - 12;
++        *esp = PHYS_BASE;
+       else
+         palloc_free_page (kpage);
+     }
+diff --git a/linuxpintos/src/userprog/syscall.c b/linuxpintos/src/userprog/syscall.c
+index 34bab1b..f726d1f 100644
+--- a/linuxpintos/src/userprog/syscall.c
++++ b/linuxpintos/src/userprog/syscall.c
+@@ -2,11 +2,11 @@
+ #include <stdio.h>
+ #include <syscall-nr.h>
+ #include "threads/interrupt.h"
+-#include "threads/thread.h"
+ #include "threads/init.h"
+ #include "filesys/filesys.h"
+ #include "filesys/file.h"
+ #include "devices/input.h"
++#include "threads/vaddr.h"
+ 
+ static void syscall_handler (struct intr_frame *);
+ 
+@@ -19,10 +19,14 @@ syscall_init (void)
+ static void
+ syscall_handler (struct intr_frame *f UNUSED) 
+ {
++
+   void* sp = f->esp;
++  if (!is_valid_pointer(sp)) {
++    exit(-1);
++  }
+   int id = *((int*)(sp));
+ 
+-  sp += 4;
++  update_sp(&sp);
+ 
+   switch(id) {
+     case SYS_HALT: {
+@@ -31,7 +35,7 @@ syscall_handler (struct intr_frame *f UNUSED)
+     }
+     case SYS_CREATE: {
+       char *file_name = *((char**)(sp));
+-      sp += 4;
++      update_sp(&sp);
+       unsigned new_size = *((unsigned*)(sp));
+       f->eax = create(file_name, new_size);
+       break;
+@@ -49,9 +53,9 @@ syscall_handler (struct intr_frame *f UNUSED)
+     case SYS_READ:
+     case SYS_WRITE: {
+       int fd_rw = *((int*)(sp));
+-      sp += 4;
++      update_sp(&sp);
+       void *buffer = *((void**)sp);
+-      sp += 4;
++      update_sp(&sp);
+       unsigned buffer_size = *((unsigned*)(sp));
+       if(id == SYS_WRITE){
+ 	f->eax = write(fd_rw, buffer, buffer_size);
+@@ -62,12 +66,58 @@ syscall_handler (struct intr_frame *f UNUSED)
+       break;
+     }
+     case SYS_EXIT: {
+-      exit(0);
++      int exit_status = *((int*)(sp));
++      exit(exit_status);
++      break;
++    }
++    case SYS_EXEC: {
++      char *cmd_line_exec = *((char**)sp);
++      f->eax = exec(cmd_line_exec);
++      break;
++    }
++    case SYS_WAIT:{
++      tid_t pid = *((tid_t*)sp);
++      f->eax = wait(pid);
+       break;
+     }
+   }
+ }
+ 
++void 
++update_sp(void **sp) {
++  (*sp) += 4;
++  if(!is_valid_pointer(*sp)) {
++    exit(-1); 
++  }
++}
++
++bool
++is_valid_pointer(void *ptr) {
++  return (ptr < PHYS_BASE && pagedir_get_page(thread_current()->pagedir, ptr) != NULL);
++}
++
++bool
++is_valid_string(char *string) {
++  do{
++    if(!is_valid_pointer(string)){
++      return false;
++    }
++  }while(*(string++) != '\0');
++  return true;
++}
++
++bool
++is_valid_buffer(void *buffer, unsigned size) {
++  unsigned i;
++  for(i = 0; i < size; i++) {
++    if(!is_valid_pointer(buffer)) {
++      return false; 
++    }
++    buffer++; 
++  }
++  return true; 
++}
++ 
+ void
+ halt (void) 
+ {
+@@ -77,11 +127,18 @@ halt (void)
+ bool
+ create (const char *file, unsigned initial_size)
+ {
++  if (!is_valid_string(file))
++    {
++      exit(-1);
++    }
+   return filesys_create(file, initial_size);
+ }
+ 
+ int
+ open (const char *file_name){
++  if (!is_valid_string(file_name)) {
++      exit(-1);
++  }
+   struct file *f = filesys_open(file_name);
+ 
+   if(f == NULL){
+@@ -104,6 +161,10 @@ open (const char *file_name){
+ 
+ void
+ close(int fd){
++  if (fd < 2 || fd > 129) {
++     exit(-1);
++  }
++
+   struct thread *cur_thread = thread_current();
+   struct file *close_file = cur_thread->file_list[fd-2];
+ 
+@@ -113,6 +174,10 @@ close(int fd){
+ 
+ int 
+ read(int fd, void *buffer, unsigned size){
++  if (!is_valid_buffer(buffer, size)) {
++    exit(-1);
++  }
++  
+   if(fd == 0){
+     //Read from console
+     unsigned i = 0;
+@@ -129,6 +194,9 @@ read(int fd, void *buffer, unsigned size){
+     if(read_file == NULL){
+       return -1;
+     }
++    if(size == 0){
++      return 0;
++    }
+ 
+     int read_bytes = file_read(read_file, buffer, (off_t)size);
+ 
+@@ -147,6 +215,11 @@ read(int fd, void *buffer, unsigned size){
+ 
+ int 
+ write(int fd, void *buffer, unsigned size){
++  if (!is_valid_buffer(buffer, size)) {
++    exit(-1);
++  }
++  
++
+   if(fd == 1){
+     //write to console
+     int remaining_bytes = size;
+@@ -168,11 +241,13 @@ write(int fd, void *buffer, unsigned size){
+     struct thread *cur_thread = thread_current();
+     struct file *write_file = cur_thread->file_list[fd-2];
+ 
+-    printf("write file is %i\n", write_file);
+-
+     if(write_file == NULL){
+       return -1;
+     }
++
++    if(size == 0) {
++      return 0; 
++    }
+     
+     int written_bytes = file_write(write_file, buffer, size);
+ 
+@@ -190,5 +265,27 @@ write(int fd, void *buffer, unsigned size){
+ 
+ void
+ exit(int status) {
++  printf("%s: exit(%d)\n", thread_current()->name, status);
++  
++  struct thread *cur_thread = thread_current();
++  cur_thread->parent_relation->exit_status = status;
++
+   thread_exit();
+ }
++
++tid_t 
++exec(const char *cmd_line){
++  if(!is_valid_string(cmd_line)) {
++    exit(-1);  
++  }
++  return process_execute(cmd_line);
++}
++
++int wait(tid_t pid){
++  if (pid == TID_ERROR) {
++    exit(-1);
++  }
++
++  return process_wait(pid);
++}
++
+diff --git a/linuxpintos/src/userprog/syscall.h b/linuxpintos/src/userprog/syscall.h
+index 93b2ce8..4e1d7bc 100644
+--- a/linuxpintos/src/userprog/syscall.h
++++ b/linuxpintos/src/userprog/syscall.h
+@@ -1,8 +1,13 @@
+ #ifndef USERPROG_SYSCALL_H
+ #define USERPROG_SYSCALL_H
+ #include <stdbool.h>
++#include <threads/thread.h>
+ 
+ void syscall_init (void);
++void update_sp(void **sp);
++bool is_valid_pointer(void *ptr);
++bool is_valid_string(char *string);
++bool is_valid_buffer(void *buffer, unsigned size);
+ void halt(void);
+ bool create(const char *file, unsigned initial_size);
+ int open(const char *file_name);
+@@ -10,4 +15,7 @@ void close(int fd);
+ int read(int fd, void *buffer, unsigned size);
+ int write(int fd, void *buffer, unsigned size);
+ void exit(int status);
++tid_t exec(const char *cmd_line);
++int wait(tid_t pid);
++void assert_list_init();
+ #endif /* userprog/syscall.h */
