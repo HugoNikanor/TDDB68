@@ -53,7 +53,6 @@ filesys_create (const char *name, off_t initial_size)
   lock_acquire(&disk_lock);
   disk_sector_t inode_sector = 0;
   struct dir *dir = dir_open_root ();
-  printf("dir: %i", dir);
 
   bool success = (dir != NULL
                   && free_map_allocate (1, &inode_sector)

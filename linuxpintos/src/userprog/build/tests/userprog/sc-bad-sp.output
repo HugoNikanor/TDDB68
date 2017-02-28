@@ -1,11 +1,11 @@
-Copying tests/userprog/sc-bad-sp into /tmp/Qzfz_sy9Iz.dsk...
-Writing command line to /tmp/Jr9QmeH7Ey.dsk...
-qemu -hda /tmp/Jr9QmeH7Ey.dsk -hdb /tmp/40Co1PKpWd.dsk -hdc /tmp/Qzfz_sy9Iz.dsk -m 4 -net none -nographic -monitor null
+Copying tests/userprog/sc-bad-sp into /tmp/H9okJn6iug.dsk...
+Writing command line to /tmp/ZDyF_S8fC6.dsk...
+qemu -hda /tmp/ZDyF_S8fC6.dsk -hdb /tmp/Di6HWNAcY9.dsk -hdc /tmp/H9okJn6iug.dsk -m 4 -net none -nographic -monitor null
 Kernel command line: -q -f put sc-bad-sp run sc-bad-sp
 Pintos booting with 4,088 kB RAM...
 371 pages available in kernel pool.
 371 pages available in user pool.
-Calibrating timer...  419,020,800 loops/s.
+Calibrating timer...  314,163,200 loops/s.
 hd0:0: detected 161 sector (80 kB) disk, model "QEMU HARDDISK", serial "QM00001"
 hd0:1: detected 4,032 sector (1 MB) disk, model "QEMU HARDDISK", serial "QM00002"
 hd1:0: detected 97 sector (48 kB) disk, model "QEMU HARDDISK", serial "QM00003"
@@ -16,8 +16,8 @@ Executing 'sc-bad-sp':
 (sc-bad-sp) begin
 sc-bad-sp: exit(-1)
 Execution of 'sc-bad-sp' complete.
-Timer: 58 ticks
-Thread: 31 idle ticks, 27 kernel ticks, 0 user ticks
+Timer: 59 ticks
+Thread: 32 idle ticks, 26 kernel ticks, 1 user ticks
 hd0:0: 0 reads, 0 writes
 hd0:1: 59 reads, 202 writes
 hd1:0: 97 reads, 0 writes

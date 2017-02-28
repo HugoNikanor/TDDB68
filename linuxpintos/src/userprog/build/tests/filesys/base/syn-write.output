@@ -1,7 +1,7 @@
-Copying tests/filesys/base/syn-write into /tmp/TvHOjjVB_L.dsk...
-Copying tests/filesys/base/child-syn-wrt into /tmp/TvHOjjVB_L.dsk...
-Writing command line to /tmp/DTQi9S0mIt.dsk...
-qemu -hda /tmp/DTQi9S0mIt.dsk -hdb /tmp/73AXH7GGM_.dsk -hdc /tmp/TvHOjjVB_L.dsk -m 4 -net none -nographic -monitor null
+Copying tests/filesys/base/syn-write into /tmp/q5tSR48wQG.dsk...
+Copying tests/filesys/base/child-syn-wrt into /tmp/q5tSR48wQG.dsk...
+Writing command line to /tmp/udp_Jyl8Ie.dsk...
+qemu -hda /tmp/udp_Jyl8Ie.dsk -hdb /tmp/_9yKja9mJb.dsk -hdc /tmp/q5tSR48wQG.dsk -m 4 -net none -nographic -monitor null
 Kernel command line: -q -f put syn-write put child-syn-wrt run syn-write
 Pintos booting with 4,088 kB RAM...
 371 pages available in kernel pool.
@@ -23,14 +23,14 @@ child-syn-wrt: exit(0)
 (syn-write) exec child 3 of 10: "child-syn-wrt 2"
 child-syn-wrt: exit(1)
 (syn-write) exec child 4 of 10: "child-syn-wrt 3"
-child-syn-wrt: exit(2)
 (syn-write) exec child 5 of 10: "child-syn-wrt 4"
+child-syn-wrt: exit(2)
 child-syn-wrt: exit(3)
 (syn-write) exec child 6 of 10: "child-syn-wrt 5"
 child-syn-wrt: exit(4)
 (syn-write) exec child 7 of 10: "child-syn-wrt 6"
-(syn-write) exec child 8 of 10: "child-syn-wrt 7"
 child-syn-wrt: exit(5)
+(syn-write) exec child 8 of 10: "child-syn-wrt 7"
 child-syn-wrt: exit(6)
 (syn-write) exec child 9 of 10: "child-syn-wrt 8"
 child-syn-wrt: exit(7)
@@ -52,10 +52,10 @@ child-syn-wrt: exit(9)
 (syn-write) end
 syn-write: exit(0)
 Execution of 'syn-write' complete.
-Timer: 67 ticks
-Thread: 33 idle ticks, 26 kernel ticks, 9 user ticks
+Timer: 68 ticks
+Thread: 32 idle ticks, 29 kernel ticks, 7 user ticks
 hd0:0: 0 reads, 0 writes
-hd0:1: 496 reads, 474 writes
+hd0:1: 495 reads, 474 writes
 hd1:0: 220 reads, 0 writes
 Console: 2265 characters output
 Keyboard: 0 keys pressed

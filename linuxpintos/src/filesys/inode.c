@@ -290,7 +290,6 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
     sema_up(&inode->wsem);
   }
   sema_up(&inode->rsem);
-  
 
   return bytes_read;
 }

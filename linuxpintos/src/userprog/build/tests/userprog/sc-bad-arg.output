@@ -1,6 +1,6 @@
-Copying tests/userprog/sc-bad-arg into /tmp/8gePZoXRxs.dsk...
-Writing command line to /tmp/HUTM4C58qy.dsk...
-qemu -hda /tmp/HUTM4C58qy.dsk -hdb /tmp/FHH88QPk5J.dsk -hdc /tmp/8gePZoXRxs.dsk -m 4 -net none -nographic -monitor null
+Copying tests/userprog/sc-bad-arg into /tmp/tgVpsVF1rO.dsk...
+Writing command line to /tmp/HWgM3BnoKy.dsk...
+qemu -hda /tmp/HWgM3BnoKy.dsk -hdb /tmp/l1shHt5E9J.dsk -hdc /tmp/tgVpsVF1rO.dsk -m 4 -net none -nographic -monitor null
 Kernel command line: -q -f put sc-bad-arg run sc-bad-arg
 Pintos booting with 4,088 kB RAM...
 371 pages available in kernel pool.
@@ -16,8 +16,8 @@ Executing 'sc-bad-arg':
 (sc-bad-arg) begin
 sc-bad-arg: exit(-1)
 Execution of 'sc-bad-arg' complete.
-Timer: 59 ticks
-Thread: 32 idle ticks, 26 kernel ticks, 1 user ticks
+Timer: 58 ticks
+Thread: 32 idle ticks, 26 kernel ticks, 0 user ticks
 hd0:0: 0 reads, 0 writes
 hd0:1: 59 reads, 204 writes
 hd1:0: 98 reads, 0 writes
