@@ -6,6 +6,7 @@
 #include "filesys/filesys.h"
 #include "filesys/free-map.h"
 #include "threads/malloc.h"
+#include "threads/synch.h"
 
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
@@ -39,8 +40,9 @@ struct inode
     struct inode_disk data;             /* Inode content. */
 
     int readcount; //Currently reading from inode
-    semaphore wsem; //Semaphore for writers
-    semaphore rsem; //Semaphore for readers
+    struct semaphore wsem; //Semaphore for writers
+    struct semaphore rsem; //Semaphore for readers
+    struct lock mut_lock; //Is mutating this node.
   };
 
 /* Returns the disk sector that contains byte offset POS within
@@ -66,9 +68,6 @@ void
 inode_init (void) 
 {
   list_init (&open_inodes);
-
-  sema_init(&wsem, 1);
-  sema_init(&rsem, 1);
 }
 
 /* Initializes an inode with LENGTH bytes of data and
@@ -106,6 +105,10 @@ inode_create (disk_sector_t sector, off_t length)
                 disk_write (filesys_disk, disk_inode->start + i, zeros); 
             }
           success = true; 
+	  struct inode *new_inode = inode_open(disk_inode->start);
+	  sema_init(&new_inode->wsem, 1); //Inits locks and semas for filesys. 
+	  sema_init(&new_inode->rsem, 1); //
+	  lock_acquire(&new_inode->mut_lock); // 
         } 
       free (disk_inode);
     }
@@ -134,7 +137,7 @@ inode_open (disk_sector_t sector)
     }
 
   /* Allocate memory. */
-  inode = malloc (sizeof *inode);
+  inode = malloc(sizeof *inode);
   if (inode == NULL)
     return NULL;
 

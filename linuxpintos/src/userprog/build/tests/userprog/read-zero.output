@@ -1,7 +1,7 @@
-Copying tests/userprog/read-zero into /tmp/vtyJR1La3n.dsk...
-Copying ../../tests/userprog/sample.txt into /tmp/vtyJR1La3n.dsk...
-Writing command line to /tmp/nqOQQ5ZX8A.dsk...
-qemu -hda /tmp/nqOQQ5ZX8A.dsk -hdb /tmp/kH6dUg9sG3.dsk -hdc /tmp/vtyJR1La3n.dsk -m 4 -net none -nographic -monitor null
+Copying tests/userprog/read-zero into /tmp/YntJYXubAa.dsk...
+Copying ../../tests/userprog/sample.txt into /tmp/YntJYXubAa.dsk...
+Writing command line to /tmp/Z3IDt83l2H.dsk...
+qemu -hda /tmp/Z3IDt83l2H.dsk -hdb /tmp/suIg0UxEoJ.dsk -hdc /tmp/YntJYXubAa.dsk -m 4 -net none -nographic -monitor null
 Kernel command line: -q -f put read-zero put sample.txt run read-zero
 Pintos booting with 4,088 kB RAM...
 372 pages available in kernel pool.
@@ -9,23 +9,21 @@ Pintos booting with 4,088 kB RAM...
 Calibrating timer...  419,020,800 loops/s.
 hd0:0: detected 153 sector (76 kB) disk, model "QEMU HARDDISK", serial "QM00001"
 hd0:1: detected 4,032 sector (1 MB) disk, model "QEMU HARDDISK", serial "QM00002"
-hd1:0: detected 101 sector (50 kB) disk, model "QEMU HARDDISK", serial "QM00003"
-Formatting file system...done.
-Boot complete.
-Putting 'read-zero' into the file system...
-Putting 'sample.txt' into the file system...
-Executing 'read-zero':
-(read-zero) begin
-(read-zero) open "sample.txt"
-(read-zero) end
-read-zero: exit(0)
-Execution of 'read-zero' complete.
-Timer: 60 ticks
-Thread: 35 idle ticks, 24 kernel ticks, 1 user ticks
+hd1:0: detected 100 sector (50 kB) disk, model "QEMU HARDDISK", serial "QM00003"
+Formatting file system...Kernel PANIC at ../../lib/kernel/list.c:171 in list_insert(): assertion `is_interior (before) || is_tail (before)' failed.
+Call stack: 0xc010710bPage fault at 0x1: not present error reading page in kernel context.
+Interrupt 0x0e (#PF Page-Fault Exception) at eip=0xc0105347
+ cr2=00000001 error=00000000
+ eax=0000000b ebx=00000001 ecx=000004c6 edx=000003d4
+ esi=000000ab edi=c010ce69 esp=c010e2cb ebp=c002fe48
+ cs=0008 ds=0010 es=0010 ss=710b
+Kernel PANIC recursion at ../../userprog/exception.c:100 in kill().
+Timer: 52 ticks
+Thread: 30 idle ticks, 22 kernel ticks, 0 user ticks
 hd0:0: 0 reads, 0 writes
-hd0:1: 90 reads, 212 writes
-hd1:0: 101 reads, 0 writes
-Console: 888 characters output
+hd0:1: 1 reads, 2 writes
+hd1:0: 0 reads, 0 writes
+Console: 1142 characters output
 Keyboard: 0 keys pressed
-Exception: 0 page faults
+Exception: 1 page faults
 Powering off...

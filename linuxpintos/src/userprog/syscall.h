@@ -17,5 +17,8 @@ int write(int fd, void *buffer, unsigned size);
 void exit(int status);
 tid_t exec(const char *cmd_line);
 int wait(tid_t pid);
-void assert_list_init();
+void seek(int fd, unsigned position);
+unsigned tell(int fd);
+int filesize(int fd);
+bool remove (const char *file_name);
 #endif /* userprog/syscall.h */

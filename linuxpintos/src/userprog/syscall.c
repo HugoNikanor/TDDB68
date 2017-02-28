@@ -80,6 +80,28 @@ syscall_handler (struct intr_frame *f UNUSED)
       f->eax = wait(pid);
       break;
     }
+    case SYS_SEEK:{
+      int fd_seek = *((int*)(sp));
+      update_sp(&sp);
+      unsigned pos = *((unsigned*)(sp));
+      seek(fd_seek, pos); 
+      break; 
+    }
+    case SYS_TELL:{
+      int fd_tell = *((int*)(sp));
+      f->eax = tell(fd_tell);
+      break; 
+    }
+    case SYS_FILESIZE:{
+      int fd_size = *((int*)(sp));
+      f->eax = filesize(fd_size);
+      break;
+    } 
+    case SYS_REMOVE:{
+      char *filename = *((char**)(sp));
+      f->eax = remove(filename); 
+      break; 
+    }
   }
 }
 
@@ -288,4 +310,50 @@ int wait(tid_t pid){
 
   return process_wait(pid);
 }
+
+void
+seek(int fd, unsigned position) {
+  if(fd <= 1 || fd >= 130){
+    exit(-1);
+  }
+
+  struct thread *cur_thread = thread_current();
+  struct file *seek_file = cur_thread->file_list[fd-2];
+
+  file_seek(seek_file, position);
+}
+
+unsigned
+tell(int fd){
+  if(fd <= 1 || fd >= 130){
+    exit(-1);
+  }
+
+  struct thread *cur_thread = thread_current();
+  struct file *tell_file = cur_thread->file_list[fd-2];
+
+  file_tell(tell_file);
+}
+
+int 
+filesize(int fd){
+  if(fd <= 1 || fd >= 130){
+    exit(-1);
+  }
+
+  struct thread *cur_thread = thread_current();
+  struct file *size_file = cur_thread->file_list[fd-2];
+
+  file_length(size_file);
+}
+
+bool
+remove (const char *file_name){
+  if(!is_valid_string(file_name)){
+    exit(-1);
+  }
+
+  filesys_remove(file_name);
+}
+
 
