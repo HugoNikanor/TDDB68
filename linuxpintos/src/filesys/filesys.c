@@ -7,11 +7,13 @@
 #include "filesys/inode.h"
 #include "filesys/directory.h"
 #include "devices/disk.h"
+#include "threads/synch.h"
 
 /* The disk that contains the file system. */
 struct disk *filesys_disk;
 
 static void do_format (void);
+struct lock disk_lock;
 
 /* Initializes the file system module.
    If FORMAT is true, reformats the file system. */
@@ -27,6 +29,8 @@ filesys_init (bool format)
 
   if (format) 
     do_format ();
+
+  lock_init(&disk_lock);
 
   free_map_open ();
 }
@@ -46,8 +50,11 @@ filesys_done (void)
 bool
 filesys_create (const char *name, off_t initial_size) 
 {
+  lock_acquire(&disk_lock);
   disk_sector_t inode_sector = 0;
   struct dir *dir = dir_open_root ();
+  printf("dir: %i", dir);
+
   bool success = (dir != NULL
                   && free_map_allocate (1, &inode_sector)
                   && inode_create (inode_sector, initial_size)
@@ -56,6 +63,7 @@ filesys_create (const char *name, off_t initial_size)
     free_map_release (inode_sector, 1);
   dir_close (dir);
 
+  lock_release(&disk_lock);
   return success;
 }
 
@@ -84,10 +92,14 @@ filesys_open (const char *name)
 bool
 filesys_remove (const char *name) 
 {
+  lock_acquire(&disk_lock);
+
   struct dir *dir = dir_open_root ();
   bool success = dir != NULL && dir_remove (dir, name);
   dir_close (dir); 
-  
+
+  lock_release(&disk_lock);
+
   return success;
 }
 

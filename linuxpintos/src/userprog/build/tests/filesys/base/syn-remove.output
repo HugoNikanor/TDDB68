@@ -1,28 +1,35 @@
-Copying tests/filesys/base/syn-remove into /tmp/vT4s9NOIUI.dsk...
-Writing command line to /tmp/VNY0joPhii.dsk...
-qemu -hda /tmp/VNY0joPhii.dsk -hdb /tmp/tjM8CHaGf4.dsk -hdc /tmp/vT4s9NOIUI.dsk -m 4 -net none -nographic -monitor null
+Copying tests/filesys/base/syn-remove into /tmp/Le5UtdqZBy.dsk...
+Writing command line to /tmp/O7j9A_OEQr.dsk...
+qemu -hda /tmp/O7j9A_OEQr.dsk -hdb /tmp/0u44kZAGwy.dsk -hdc /tmp/Le5UtdqZBy.dsk -m 4 -net none -nographic -monitor null
 Kernel command line: -q -f put syn-remove run syn-remove
 Pintos booting with 4,088 kB RAM...
-372 pages available in kernel pool.
+371 pages available in kernel pool.
 371 pages available in user pool.
 Calibrating timer...  419,020,800 loops/s.
-hd0:0: detected 153 sector (76 kB) disk, model "QEMU HARDDISK", serial "QM00001"
+hd0:0: detected 161 sector (80 kB) disk, model "QEMU HARDDISK", serial "QM00001"
 hd0:1: detected 4,032 sector (1 MB) disk, model "QEMU HARDDISK", serial "QM00002"
 hd1:0: detected 105 sector (52 kB) disk, model "QEMU HARDDISK", serial "QM00003"
-Formatting file system...Kernel PANIC at ../../lib/kernel/list.c:171 in list_insert(): assertion `is_interior (before) || is_tail (before)' failed.
-Call stack: 0xc010710bPage fault at 0x1: not present error reading page in kernel context.
-Interrupt 0x0e (#PF Page-Fault Exception) at eip=0xc0105347
- cr2=00000001 error=00000000
- eax=0000000b ebx=00000001 ecx=000004c6 edx=000003d4
- esi=000000ab edi=c010ce69 esp=c010e2cb ebp=c002fe48
- cs=0008 ds=0010 es=0010 ss=710b
-Kernel PANIC recursion at ../../userprog/exception.c:100 in kill().
-Timer: 54 ticks
-Thread: 30 idle ticks, 24 kernel ticks, 0 user ticks
+Formatting file system...done.
+Boot complete.
+Putting 'syn-remove' into the file system...
+Executing 'syn-remove':
+(syn-remove) begin
+(syn-remove) create "deleteme"
+(syn-remove) open "deleteme"
+(syn-remove) remove "deleteme"
+(syn-remove) write "deleteme"
+(syn-remove) seek "deleteme" to 0
+(syn-remove) read "deleteme"
+(syn-remove) close "deleteme"
+(syn-remove) end
+syn-remove: exit(0)
+Execution of 'syn-remove' complete.
+Timer: 61 ticks
+Thread: 33 idle ticks, 26 kernel ticks, 2 user ticks
 hd0:0: 0 reads, 0 writes
-hd0:1: 1 reads, 2 writes
-hd1:0: 0 reads, 0 writes
-Console: 1129 characters output
+hd0:1: 97 reads, 231 writes
+hd1:0: 105 reads, 0 writes
+Console: 1020 characters output
 Keyboard: 0 keys pressed
-Exception: 1 page faults
+Exception: 0 page faults
 Powering off...

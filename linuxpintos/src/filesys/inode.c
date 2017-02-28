@@ -39,10 +39,10 @@ struct inode
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
     struct inode_disk data;             /* Inode content. */
 
+    
     int readcount; //Currently reading from inode
     struct semaphore wsem; //Semaphore for writers
-    struct semaphore rsem; //Semaphore for readers
-    struct lock mut_lock; //Is mutating this node.
+    struct semaphore rsem; //Semaphore for readers  
   };
 
 /* Returns the disk sector that contains byte offset POS within
@@ -62,12 +62,14 @@ byte_to_sector (const struct inode *inode, off_t pos)
 /* List of open inodes, so that opening a single inode twice
    returns the same `struct inode'. */
 static struct list open_inodes;
+struct lock openclose_lock;
 
 /* Initializes the inode module. */
 void
 inode_init (void) 
 {
   list_init (&open_inodes);
+  lock_init(&openclose_lock); 
 }
 
 /* Initializes an inode with LENGTH bytes of data and
@@ -105,10 +107,6 @@ inode_create (disk_sector_t sector, off_t length)
                 disk_write (filesys_disk, disk_inode->start + i, zeros); 
             }
           success = true; 
-	  struct inode *new_inode = inode_open(disk_inode->start);
-	  sema_init(&new_inode->wsem, 1); //Inits locks and semas for filesys. 
-	  sema_init(&new_inode->rsem, 1); //
-	  lock_acquire(&new_inode->mut_lock); // 
         } 
       free (disk_inode);
     }
@@ -123,7 +121,9 @@ inode_open (disk_sector_t sector)
 {
   struct list_elem *e;
   struct inode *inode;
-
+  
+  lock_acquire(&openclose_lock); 
+  
   /* Check whether this inode is already open. */
   for (e = list_begin (&open_inodes); e != list_end (&open_inodes);
        e = list_next (e)) 
@@ -132,22 +132,32 @@ inode_open (disk_sector_t sector)
       if (inode->sector == sector) 
         {
           inode_reopen (inode);
+	  lock_release(&openclose_lock); 
           return inode; 
         }
     }
 
   /* Allocate memory. */
   inode = malloc(sizeof *inode);
-  if (inode == NULL)
+  if (inode == NULL) {
+    lock_release(&openclose_lock); 
     return NULL;
+  }
 
   /* Initialize. */
   list_push_front (&open_inodes, &inode->elem);
   inode->sector = sector;
   inode->open_cnt = 1;
+
+  inode->readcount = 0;
+  sema_init(&inode->wsem, 1); //Inits locks and semas for filesys. 
+  sema_init(&inode->rsem, 1); //
+
   inode->deny_write_cnt = 0;
   inode->removed = false;
   disk_read (filesys_disk, inode->sector, &inode->data);
+  
+  lock_release(&openclose_lock); 
   return inode;
 }
 
@@ -180,6 +190,8 @@ inode_close (struct inode *inode)
   if (inode == NULL)
     return;
 
+  lock_acquire(&openclose_lock); 
+
   /* Release resources if this was the last opener. */
   if (--inode->open_cnt == 0)
     {
@@ -196,6 +208,7 @@ inode_close (struct inode *inode)
 
       free (inode); 
     }
+    lock_release(&openclose_lock); 
 }
 
 /* Marks INODE to be deleted when it is closed by the last caller who
@@ -217,6 +230,7 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
   off_t bytes_read = 0;
   uint8_t *bounce = NULL;
 
+  
   //Synchronization
   sema_down(&inode->rsem);
   inode->readcount++;
@@ -224,6 +238,7 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
     sema_down(&inode->wsem);
   }
   sema_up(&inode->rsem);
+  
 
   while (size > 0) 
     {
@@ -267,6 +282,7 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
     }
   free (bounce);
 
+  
   //Done reading, more synchronization
   sema_down(&inode->rsem);
   inode->readcount--;
@@ -274,6 +290,7 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
     sema_up(&inode->wsem);
   }
   sema_up(&inode->rsem);
+  
 
   return bytes_read;
 }
@@ -293,12 +310,6 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 
   //Synchronization
   sema_down(&inode->wsem);
-
-  //Old and bad??
-  /* 
-  if (inode->deny_write_cnt)
-    return 0;
-  */
 
   while (size > 0) 
     {

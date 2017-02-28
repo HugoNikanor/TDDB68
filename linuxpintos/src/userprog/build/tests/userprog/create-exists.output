@@ -1,28 +1,33 @@
-Copying tests/userprog/create-exists into /tmp/eZKGv6761u.dsk...
-Writing command line to /tmp/mHxiOExA7U.dsk...
-qemu -hda /tmp/mHxiOExA7U.dsk -hdb /tmp/WkIP5eIUfm.dsk -hdc /tmp/eZKGv6761u.dsk -m 4 -net none -nographic -monitor null
+Copying tests/userprog/create-exists into /tmp/VoDUjNPmiS.dsk...
+Writing command line to /tmp/Un4CeFu1Pk.dsk...
+qemu -hda /tmp/Un4CeFu1Pk.dsk -hdb /tmp/Araz4VxdoR.dsk -hdc /tmp/VoDUjNPmiS.dsk -m 4 -net none -nographic -monitor null
 Kernel command line: -q -f put create-exists run create-exists
 Pintos booting with 4,088 kB RAM...
-372 pages available in kernel pool.
+371 pages available in kernel pool.
 371 pages available in user pool.
 Calibrating timer...  419,020,800 loops/s.
-hd0:0: detected 153 sector (76 kB) disk, model "QEMU HARDDISK", serial "QM00001"
+hd0:0: detected 161 sector (80 kB) disk, model "QEMU HARDDISK", serial "QM00001"
 hd0:1: detected 4,032 sector (1 MB) disk, model "QEMU HARDDISK", serial "QM00002"
 hd1:0: detected 99 sector (49 kB) disk, model "QEMU HARDDISK", serial "QM00003"
-Formatting file system...Kernel PANIC at ../../lib/kernel/list.c:171 in list_insert(): assertion `is_interior (before) || is_tail (before)' failed.
-Call stack: 0xc010710bPage fault at 0x1: not present error reading page in kernel context.
-Interrupt 0x0e (#PF Page-Fault Exception) at eip=0xc0105347
- cr2=00000001 error=00000000
- eax=0000000b ebx=00000001 ecx=00000476 edx=000003d4
- esi=000000ab edi=c010ce69 esp=c010e2cb ebp=c002fe48
- cs=0008 ds=0010 es=0010 ss=710b
-Kernel PANIC recursion at ../../userprog/exception.c:100 in kill().
-Timer: 54 ticks
-Thread: 30 idle ticks, 24 kernel ticks, 0 user ticks
+Formatting file system...done.
+Boot complete.
+Putting 'create-exists' into the file system...
+Executing 'create-exists':
+(create-exists) begin
+(create-exists) create quux.dat
+(create-exists) create warble.dat
+(create-exists) try to re-create quux.dat
+(create-exists) create baffle.dat
+(create-exists) try to re-create quux.dat
+(create-exists) end
+create-exists: exit(0)
+Execution of 'create-exists' complete.
+Timer: 60 ticks
+Thread: 34 idle ticks, 27 kernel ticks, 0 user ticks
 hd0:0: 0 reads, 0 writes
-hd0:1: 1 reads, 2 writes
-hd1:0: 0 reads, 0 writes
-Console: 1134 characters output
+hd0:1: 142 reads, 226 writes
+hd1:0: 99 reads, 0 writes
+Console: 1013 characters output
 Keyboard: 0 keys pressed
-Exception: 1 page faults
+Exception: 0 page faults
 Powering off...

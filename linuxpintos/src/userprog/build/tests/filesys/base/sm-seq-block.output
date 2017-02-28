@@ -1,28 +1,35 @@
-Copying tests/filesys/base/sm-seq-block into /tmp/vAqDVKMLOW.dsk...
-Writing command line to /tmp/3hh7kDWZMT.dsk...
-qemu -hda /tmp/3hh7kDWZMT.dsk -hdb /tmp/7kh4p9L4wO.dsk -hdc /tmp/vAqDVKMLOW.dsk -m 4 -net none -nographic -monitor null
+Copying tests/filesys/base/sm-seq-block into /tmp/TPeJXpgXL_.dsk...
+Writing command line to /tmp/AWepDJwv7w.dsk...
+qemu -hda /tmp/AWepDJwv7w.dsk -hdb /tmp/dtn6StwFNT.dsk -hdc /tmp/TPeJXpgXL_.dsk -m 4 -net none -nographic -monitor null
 Kernel command line: -q -f put sm-seq-block run sm-seq-block
 Pintos booting with 4,088 kB RAM...
-372 pages available in kernel pool.
+371 pages available in kernel pool.
 371 pages available in user pool.
 Calibrating timer...  419,020,800 loops/s.
-hd0:0: detected 153 sector (76 kB) disk, model "QEMU HARDDISK", serial "QM00001"
+hd0:0: detected 161 sector (80 kB) disk, model "QEMU HARDDISK", serial "QM00001"
 hd0:1: detected 4,032 sector (1 MB) disk, model "QEMU HARDDISK", serial "QM00002"
 hd1:0: detected 102 sector (51 kB) disk, model "QEMU HARDDISK", serial "QM00003"
-Formatting file system...Kernel PANIC at ../../lib/kernel/list.c:171 in list_insert(): assertion `is_interior (before) || is_tail (before)' failed.
-Call stack: 0xc010710bPage fault at 0x1: not present error reading page in kernel context.
-Interrupt 0x0e (#PF Page-Fault Exception) at eip=0xc0105347
- cr2=00000001 error=00000000
- eax=0000000b ebx=00000001 ecx=000004c6 edx=000003d4
- esi=000000ab edi=c010ce69 esp=c010e2cb ebp=c002fe48
- cs=0008 ds=0010 es=0010 ss=710b
-Kernel PANIC recursion at ../../userprog/exception.c:100 in kill().
-Timer: 54 ticks
-Thread: 30 idle ticks, 24 kernel ticks, 0 user ticks
+Formatting file system...done.
+Boot complete.
+Putting 'sm-seq-block' into the file system...
+Executing 'sm-seq-block':
+(sm-seq-block) begin
+(sm-seq-block) create "noodle"
+(sm-seq-block) open "noodle"
+(sm-seq-block) writing "noodle"
+(sm-seq-block) close "noodle"
+(sm-seq-block) open "noodle" for verification
+(sm-seq-block) verified contents of "noodle"
+(sm-seq-block) close "noodle"
+(sm-seq-block) end
+sm-seq-block: exit(0)
+Execution of 'sm-seq-block' complete.
+Timer: 62 ticks
+Thread: 32 idle ticks, 28 kernel ticks, 2 user ticks
 hd0:0: 0 reads, 0 writes
-hd0:1: 1 reads, 2 writes
-hd1:0: 0 reads, 0 writes
-Console: 1133 characters output
+hd0:1: 124 reads, 251 writes
+hd1:0: 102 reads, 0 writes
+Console: 1066 characters output
 Keyboard: 0 keys pressed
-Exception: 1 page faults
+Exception: 0 page faults
 Powering off...

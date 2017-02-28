@@ -1,28 +1,28 @@
-Copying tests/userprog/write-bad-fd into /tmp/0QFlmBWF2t.dsk...
-Writing command line to /tmp/CTucTX67WJ.dsk...
-qemu -hda /tmp/CTucTX67WJ.dsk -hdb /tmp/4hr0oFI1Pk.dsk -hdc /tmp/0QFlmBWF2t.dsk -m 4 -net none -nographic -monitor null
+Copying tests/userprog/write-bad-fd into /tmp/oSMU7Lt_B3.dsk...
+Writing command line to /tmp/vRdjiiZDI2.dsk...
+qemu -hda /tmp/vRdjiiZDI2.dsk -hdb /tmp/nEnjQKKuLa.dsk -hdc /tmp/oSMU7Lt_B3.dsk -m 4 -net none -nographic -monitor null
 Kernel command line: -q -f put write-bad-fd run write-bad-fd
 Pintos booting with 4,088 kB RAM...
-372 pages available in kernel pool.
+371 pages available in kernel pool.
 371 pages available in user pool.
 Calibrating timer...  419,020,800 loops/s.
-hd0:0: detected 153 sector (76 kB) disk, model "QEMU HARDDISK", serial "QM00001"
+hd0:0: detected 161 sector (80 kB) disk, model "QEMU HARDDISK", serial "QM00001"
 hd0:1: detected 4,032 sector (1 MB) disk, model "QEMU HARDDISK", serial "QM00002"
 hd1:0: detected 98 sector (49 kB) disk, model "QEMU HARDDISK", serial "QM00003"
-Formatting file system...Kernel PANIC at ../../lib/kernel/list.c:171 in list_insert(): assertion `is_interior (before) || is_tail (before)' failed.
-Call stack: 0xc010710bPage fault at 0x1: not present error reading page in kernel context.
-Interrupt 0x0e (#PF Page-Fault Exception) at eip=0xc0105347
- cr2=00000001 error=00000000
- eax=0000000b ebx=00000001 ecx=00000476 edx=000003d4
- esi=000000ab edi=c010ce69 esp=c010e2cb ebp=c002fe48
- cs=0008 ds=0010 es=0010 ss=710b
-Kernel PANIC recursion at ../../userprog/exception.c:100 in kill().
-Timer: 52 ticks
-Thread: 30 idle ticks, 22 kernel ticks, 0 user ticks
+Formatting file system...done.
+Boot complete.
+Putting 'write-bad-fd' into the file system...
+Executing 'write-bad-fd':
+(write-bad-fd) begin
+(write-bad-fd) end
+write-bad-fd: exit(0)
+Execution of 'write-bad-fd' complete.
+Timer: 60 ticks
+Thread: 32 idle ticks, 28 kernel ticks, 0 user ticks
 hd0:0: 0 reads, 0 writes
-hd0:1: 1 reads, 2 writes
-hd1:0: 0 reads, 0 writes
-Console: 1132 characters output
+hd0:1: 59 reads, 204 writes
+hd1:0: 98 reads, 0 writes
+Console: 820 characters output
 Keyboard: 0 keys pressed
-Exception: 1 page faults
+Exception: 0 page faults
 Powering off...
